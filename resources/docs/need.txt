@@ -1,0 +1,187 @@
+
+# EXR — Learning coverage map
+#
+# Sources:
+#   A) the original wish-list line (kept verbatim below)
+#   B) resources/docs/Nikhil_Meher_Resume.docx (Technical Skills + all 4 roles)
+#
+# RULE for grouping: where several technologies solve the same problem, the one we
+# actually BUILD with is listed first and its equivalents follow in brackets, e.g.
+#   PostgreSQL (MySQL, Oracle, MSSQL, H2)
+# Bracketed technologies are NOT taught hands-on. The point is to show you that your
+# existing knowledge transfers, not to teach five databases.
+#
+# ORIGINAL WISH-LIST (A):
+#   "system design/architecture using java21, microservices with scaling, unit testing,
+#    git/CICD/git Actions, AWS(gateway, EKS, ECS...), terraform, datadog for monitoring,
+#    postgress with hibernate and redis caching, spring security, oauth2 with OIDC and JWT,
+#    queues (SQS and kafka) and SNS, threading, access to 3rd party APIs, circuit breakers,
+#    rate limiting"
+
+=====================================================================
+COVERED — we build these hands-on in this project
+=====================================================================
+
+LANGUAGE & RUNTIME
+- Java 21 (Java 8, 11, 17 as prior steps) — records, sealed types, pattern matching,
+  virtual threads, SequencedCollection
+- Core Java: OOP, exception design, collections, generics/type erasure, streams, immutability
+- Multithreading & concurrency: ThreadPoolExecutor (bounded queue + rejection policy),
+  virtual threads, CompletableFuture, structured concurrency, locks / atomics / volatile,
+  Java Memory Model, deadlocks, thread dumps (jstack)
+- Design patterns & SOLID: layered architecture, DTO, DAO, factory, strategy, decorator
+- Error design: RFC 7807 problem+json, never leaking internals
+
+FRAMEWORKS
+- Spring Boot 3 / Spring Framework 6, Spring MVC, dependency injection (Quarkus, Micronaut)
+- Spring Cloud Gateway at the edge (Kong API Gateway, AWS API Gateway, Nginx)
+- Spring Security filter chain + OAuth2 / OIDC + JWT: JWKS, PKCE, refresh rotation, RBAC,
+  method security, revocation
+- Spring Data JPA / Hibernate ORM: mapping, lazy vs eager, N+1, optimistic/pessimistic locking
+- Spring Batch — Phase EXTRA Day 21 (chunk model, restartability, partitioning)
+- Spring for GraphQL — Phase EXTRA Day 22 (SDL, @BatchMapping, query cost limits)
+- springdoc-openapi (Swagger)
+- SLF4J + Logback structured logging (Log4j2)
+- Micrometer metrics
+- Resilience4j: circuit breaker, retry, bulkhead, time limiter, rate limiter (Hystrix is retired)
+- React 18 + TypeScript + Vite + TanStack Query (frontend, deliberately thin)
+- Spring WebFlux — the gateway only, plus one side-by-side reactive comparison lab
+
+DATA
+- PostgreSQL 16 (MySQL, Oracle, MSSQL, H2) — schema design, indexes, EXPLAIN, isolation levels,
+  zero-downtime migrations, full-text search with tsvector + GIN (OpenSearch / Elasticsearch)
+- Hibernate ORM / JPA — entities, relationships, @Version optimistic locking, SELECT FOR UPDATE
+- Transactions: @Transactional boundaries, propagation, rollback rules, isolation levels
+- Flyway migrations (Liquibase)
+- Redis 7 (ElastiCache, Memcached) — cache-aside, TTL + jitter, stampede, invalidation, and
+  Redis as rate-limit counter / token denylist / idempotency store
+
+MESSAGING & EVENT-DRIVEN
+- Apache Kafka (Amazon MSK, Confluent) — topics, partitions, consumer groups, transactional
+  outbox, idempotent consumer, DLQ, hot partitions
+- AWS SQS (RabbitMQ, Amazon MQ, ActiveMQ) — visibility timeout, long polling, delayed
+  messages, DLQ + redrive
+- AWS SNS (EventBridge, RabbitMQ fan-out exchanges) — fan-out, filter policies
+- Saga pattern (choreography) with compensation and reconciliation
+
+RESILIENCE & SCALE
+- Circuit breakers, retries with jitter, bulkhead, time limiter (Resilience4j)
+- Rate limiting: fixed window vs sliding window vs token bucket vs leaky bucket, fairness
+- Caching strategies and cache failure modes
+- Horizontal scaling, statelessness, read replicas, backpressure and load shedding
+
+CLOUD & INFRASTRUCTURE
+- AWS (Azure/AKS, GCP equivalents): ECR, ECS Fargate, EKS, ALB + ACM, RDS, ElastiCache, S3,
+  SQS, SNS, SES, Secrets Manager, IAM, CloudWatch, AWS Budgets
+- Kubernetes / EKS — deployment target only (AKS, OpenShift, GKE)
+- Terraform (CloudFormation, Pulumi, CDK)
+- Docker + Docker Compose (Podman)
+- GitHub Actions (Jenkins, Bitbucket Pipelines, GitLab CI) + OIDC to AWS, no static keys
+- Delivery safety: expand/contract migrations, blue/green, rollback, draining in-flight work
+
+OBSERVABILITY
+- Datadog: APM traces, logs, metrics, dashboards, monitors, SLOs (Dynatrace, Grafana,
+  Prometheus, Kibana, CloudWatch)
+- Distributed tracing + correlation IDs, trace sampling and cost control
+- SLI / SLO / error budgets, alerting, runbooks
+
+TESTING
+- JUnit 5, Mockito, AssertJ
+- Testcontainers (Postgres, Redis, Kafka)
+- WireMock for third-party APIs
+- @WebMvcTest / @GraphQlTest slice tests
+- Contract testing (Spring Cloud Contract, Pact)
+- Load testing with k6 or Gatling (JMeter)
+- ArchUnit for architecture rules
+
+ARCHITECTURE & SYSTEM DESIGN
+- Microservices, bounded contexts, database-per-service, distributed-monolith avoidance
+- Event-driven architecture, transactional outbox, eventual consistency
+- Idempotency, at-least-once vs effectively-once
+- API versioning, backward compatibility, GraphQL schema evolution
+- Capacity estimation, failure-mode drills, tradeoff documentation
+
+=====================================================================
+NOT COVERED — on your CV / adjacent, but not built in this project
+=====================================================================
+(You are expected to MAP your existing knowledge onto the covered column, not
+re-learn these. If any of them is likely in a target job description, say so and
+we can swap it into Phase EXTRA.)
+
+Previous-generation / different stack — concepts transfer, syntax does not
+- SOAP / WSDL / SOA (we do REST + GraphQL + events instead)
+- Struts, JSF, jQuery, JSP/Servlet-era MVC
+- ASP.NET, C#, VB
+- Node.js / Express backends
+- Java Spark (micro-framework) and Apache Spark / Spark Streaming (big-data processing)
+- Drools rule engine (externalised business rules)
+- LDAP directory integration
+
+Data platforms we do not use
+- MongoDB / document NoSQL (we use relational Postgres + Redis)
+- Amazon Redshift, data warehousing, columnar analytics
+- Oracle-specific features (stored procedures, triggers, cursors) — Postgres equivalents are covered
+
+Platforms and runtimes we do not build with
+- Quarkus, Micronaut (Spring Boot is the vehicle)
+- R2DBC as the persistence layer — offered as a LAB instead (see Q2 below)
+- AWS Lambda / serverless, Step Functions
+- EventBridge rule-based routing (SNS fan-out covers the concept)
+- Helm, Kubernetes operators / CRDs, service mesh (Istio, Linkerd)
+- Spring Cloud Config Server, Eureka (service discovery is covered conceptually on Day 7.7)
+
+Practices out of scope for this vehicle
+- SonarQube quality gates (already on your CV — cheap to bolt into CI if wanted)
+- Multi-region active-active, CQRS, event sourcing, multi-tenancy, gRPC, WebSockets at scale
+
+Whole subjects that belong to a SEPARATE track
+- DSA / algorithm practice — this project does not substitute for it
+- JVM internals deep dive (GC, heap dumps, JFR) — proposed as Phase EXTRA Day 23, not yet scheduled
+- Mobile / native apps, SSR frameworks
+
+=====================================================================
+QUESTIONS — answered, kept here for reference
+=====================================================================
+
+Q1. Are we using WebFlux?
+A1. Yes, but ONLY in `api-gateway`. Spring Cloud Gateway is built on WebFlux/Netty.
+    The four business services are servlet MVC (Spring MVC).
+    Why: reactive code is harder to read and to debug, and our business logic is short
+    bursts of database work where reactive buys nothing. The gateway is pure IO
+    proxying, where it genuinely shines — so you see both stacks in one project.
+    You will also see the consequence: a servlet `Filter` does not exist in a reactive
+    stack, so the gateway needs its own WebFilter for correlation ids (Day 7).
+
+Q2. Can we use R2DBC in one service and JPA in another, to compare?
+A2. Not as the architecture — that would double the persistence surface, split the
+    learning, and pay a real cost for a workload we do not have. But the COMPARISON
+    is genuinely valuable for interviews, so it is offered as a lab instead:
+    build the SAME endpoint twice (JPA + blocking, then R2DBC + WebFlux), measure
+    throughput under load, and write up the tradeoff. Same answer, no contamination.
+    Candidate for Phase EXTRA Day 25.
+
+Q3. I want to understand @Transactional, concurrent SQL writes, and failure handling.
+A3. Covered, in three explicit places:
+    - Day 2  -> transaction boundaries, propagation, rollback rules, isolation levels
+    - Day 8  -> the 2-subscription quota race: solve it with a DB constraint,
+                SELECT ... FOR UPDATE, and a Redis counter. Deliberately write a
+                FAILING concurrency test first, so you SEE the lost update, then fix it.
+    - Day 11 -> why "write to DB then publish to Kafka" is not atomic (transactional outbox)
+    - Day 14 -> idempotency and compensation when a step fails after money moved
+
+Q4. Are we implementing the SAGA pattern?
+A4. Yes — Day 14, choreography style, for the payment -> tier-upgrade flow, including
+    compensating actions and a reconciliation job for "paid but upgrade failed".
+    Orchestration (a central state machine) is discussed and rejected on purpose:
+    one flow does not justify an orchestrator, and choreography is the better default.
+
+
+
+
+
+
+QUESTIONS:
+- are we using webflux?
+- are we using r2dbc or JPA? can we use r2dbc in one service and JPA in another to see how things work and to understand its clear comparison?
+- I also want to under the @Transactional annotation, can we implement that? I need to understand how concurrent SQL write oprations and its failure is handled.
+- are we implenmenting SAGA pattern

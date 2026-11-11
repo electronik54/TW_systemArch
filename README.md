@@ -4,8 +4,9 @@ Tracks release dates for **games, movies, web series, anime and live local event
 subscribers before they miss them — by email and calendar reminder.
 
 > **Status:** Day 1 of the build. The repository skeleton exists; there are no services yet.
-> Read [`resources/docs/plan.md`](resources/docs/plan.md) first — it holds the curriculum, the
-> architecture decisions and the progress log.
+> **Start at [`resources/docs/index.md`](resources/docs/index.md)** — the entry point that routes
+> you to everything else. It links to the operating manual (`plan.md`), the product spec and the
+> learning coverage map.
 
 ## Architecture in one line
 
@@ -52,8 +53,10 @@ resources/docs/          plan.md (curriculum + decisions + progress), projectDet
 
 | File | Contents |
 |---|---|
+| **`resources/docs/index.md`** | **Entry point** — 60-second orientation, read order, current status, rules |
 | `resources/docs/plan.md` | Curriculum by day, architecture decisions (D-001…), hardening backlog, progress log |
 | `resources/docs/projectDetails.md` | Product spec: roles and quotas, event model, sources, notifications, payments |
+| `resources/docs/need.txt` | Learning coverage map: covered vs not covered, and answered design questions |
 
 ## Conventions
 

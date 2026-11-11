@@ -9,9 +9,15 @@
 
 ## 0. RESUME HERE (state as of 2026-10-28, end of Day 0)
 
-**Status: planning complete, ZERO code written.** The workspace holds `need.txt`, `.gitignore`, `.idea/` (IntelliJ) and `resources/docs/`. There is **no `pom.xml`, no Maven wrapper, and no `.git` repository** yet. No git history exists.
+**Status: Phase 0 complete; Day 1 complete.** The repo is initialised on `master` and pushed to
+`https://github.com/electronik54/TW_systemArch`, with CI green. `pom.xml` (aggregator + parent),
+the Maven wrapper (3.9.15), `.gitattributes`, `.editorconfig`, `.gitignore`, `README.md` and
+`.github/workflows/ci.yml` are in place. `libs/exr-common` holds the correlation-id filter, the
+RFC 7807 error model and its auto-configuration, with **11 passing tests**. **No services exist
+yet** — the next work is Day 2 (data design).
 
-**Docs live in `resources/docs/`** — `plan.md` (this file) and `projectDetails.md`. They were moved there from `docs/` at the end of Day 0.
+**Docs live in `resources/docs/`** — start at `index.md`, then `plan.md` (this file) and
+`projectDetails.md`; `need.txt` holds the learning coverage map.
 
 > **KNOWN ISSUE — FIXED (rev 12).** The `.gitignore` previously contained a bare `resources/` pattern. A pattern with no leading slash matches a directory named `resources` **at any depth**, so it silently ignored:
 > - `resources/docs/**` — these planning docs,
@@ -53,7 +59,7 @@
 
 ## 1. INSTRUCTIONS TO THE AGENT — read this first when resuming
 
-1. Read **this file** and **`resources/docs/projectDetails.md`** before doing anything. They are the source of truth for scope. (Both live in `resources/docs/`.)
+1. **Start at `resources/docs/index.md`**, then read **this file** and **`resources/docs/projectDetails.md`** before doing anything. They are the source of truth for scope.
 2. **Never dump the whole architecture at once.** One topic per session, incremental, small steps.
 3. **TOPIC GATE (hard rule):** before starting any topic listed in section 9, ask the user:
    *"Do you want to learn `<topic>`, or do you already know it and want to skip to `<next>`?"*
@@ -64,7 +70,7 @@
 7. **Production-first (workspace rule 15):** always give the pattern a real high-load service would use and say *why*. Explicitly call out when a simpler shortcut is **not** production-safe.
 8. **Keep the project SMALL.** The user is time-constrained. 5 thin services. No extra features unless asked. Every module must be justified by a concept we are learning.
 9. **Docs last** (workspace rule 14): core code + verification first, `.md` files last. No code snippets inside explanation `.md` files — class/method names only.
-10. **Never touch git history** (no commit/amend/reset/push) unless the user asks in that turn. Show `git status` instead.
+10. **The user runs git; the agent advises.** From Day 2 (rev 14) the user performs all git operations themselves, as a deliberate exercise in understanding how code reaches production. The agent must (a) **never** run `git add/commit/push/amend/reset` unless explicitly asked, and (b) instead propose the **exact command** plus a one-line reason *why that command*. Read-only inspection (`git status`, `git log`, `git diff`, `git ls-files`, `git ls-remote`) is still allowed.
 11. **Update section 9 checkboxes and section 11 (Progress) at the end of every session**, and bump "Last updated". This file is the resume point — keep it accurate.
 12. **Interview framing (mandatory for every topic):** always include
     (a) the **tradeoff table** (option A vs B, when to pick which),
@@ -484,6 +490,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 - [ ] 2.4 JPA mapping with Hibernate 6: records vs entities, `@Version`, `@Embedded`, avoid N+1 (`@EntityGraph`)
 - [ ] 2.5 Testcontainers integration test for repositories
 - [ ] 2.6 Full-text search in Postgres: `tsvector` + GIN index vs `LIKE`/trigram vs OpenSearch — pick and justify *(H3)*
+- [ ] 2.7 **`@Transactional` in depth** *(user request)*: where the boundary belongs (service layer, not controller), propagation (`REQUIRED` vs `REQUIRES_NEW`), rollback rules (runtime vs checked exceptions), isolation levels, and what a transaction does **not** protect you from (lost updates)
 - *Exit test:* user can justify each index and explain why the catalogue is not `JOIN`ed to users.
 
 **DAY 3 — Catalog service REST API**
@@ -528,6 +535,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 - [ ] 8.1 Where subscriptions live (open question #2) — decision + consequences
 - [ ] 8.2 Quota enforcement that is actually atomic: DB constraint / `SELECT ... FOR UPDATE` / Redis counter (pick one, justify)
 - [ ] 8.3 Idempotent subscribe (idempotency key), unique constraint, optimistic locking, retry safety
+- [ ] 8.5 **Prove the bug before fixing it** *(user request)*: write a failing concurrent test that reproduces a lost update / quota overrun against the naive implementation, then fix it and watch the same test go green
 - [ ] 8.4 Entitlement check: synchronous call vs tier claim in JWT vs cached entitlement (open question #3)
 - *Exit test:* user can explain how two parallel requests cannot both take the last free slot.
 
@@ -698,7 +706,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 |---|---|---|
 | 23 | *(proposed: JVM & core-Java internals)* | pending user decision |
 | 24 | *(proposed: Kubernetes essentials for a Java dev)* | pending user decision |
-| 25 | *(reserved — to be chosen by the user)* | not set |
+| 25 | *(proposed: **reactive lab** — build the same endpoint twice, JPA + Spring MVC vs R2DBC + WebFlux, then compare throughput, complexity and error handling under load)* | pending user decision |
 
 ---
 
@@ -812,6 +820,8 @@ Reproducibility is not one setting; it is all four.
 **Test status:** 11 unit tests, all green; `./mvnw verify` green locally **and** in Actions.
 
 **Deliberately deferred:** `@WebMvcTest` coverage of the exception handler (Day 3) · the branch-protection toggle in the GitHub UI (needs check name `Build and test (Java 21)`) · Postgres/Redis/Kafka (Days 2, 9, 11).
+
+**Re-teach on demand (user request):** when `CorrelationIdFilter` and `ProblemSupport` are first wired into a real service, stop and re-explain them **including the Spring Security filter chain** (servlet filter ordering, `OncePerRequestFilter` vs security filters, where authentication sits relative to our filter) — the user has not worked with the Spring filter chain before. Do not assume this knowledge on Day 4/7.
 
 **Decisions still open, none blocking Phase 1:** P3 (Day 23 JVM internals), P4 (Day 24 Kubernetes), P5 (Tier 2 additions).
 
