@@ -2,12 +2,12 @@
 
 > **Product:** EXR (Event eXploreR) — release-date & live-event tracking with notifications.
 > **User goal:** learn production-grade system design/architecture hands-on (Java 21 + microservices) using this project as the vehicle, and prepare for a system-design interview.
-> **Last updated:** Day 0 — 2026-10-28 (rev 13: local environment verified — JDK 21 activated via user-level `JAVA_HOME`, Maven confirmed running on Java 21; environment table added as section 11.3)
+> **Last updated:** Day 1 closeout (rev 15: user now drives git · `need.txt` rewritten as a COVERED/NOT COVERED map · `index.md` added as the entry point · stale status block replaced)
 > **Companion docs:** `resources/docs/projectDetails.md` (feature spec) · `resources/docs/decisions.md` (ADR log, created Phase 1)
 
 ---
 
-## 0. RESUME HERE (state as of 2026-10-28, end of Day 0)
+## 0. RESUME HERE (state as of end of Day 1 — Phase 0 complete, Day 2 step 1 awaiting confirmation)
 
 **Status: Phase 0 complete; Day 1 complete.** The repo is initialised on `master` and pushed to
 `https://github.com/electronik54/TW_systemArch`, with CI green. `pom.xml` (aggregator + parent),
@@ -51,9 +51,13 @@ yet** — the next work is Day 2 (data design).
 
 **Also still open:** the five questions in section 12 (git remote, AWS account + budget, TMDB/IGDB keys, Datadog availability, realistic session length).
 
-**Next concrete action once P1 and P2 are answered:** run the topic gate, then create the remaining Day 1.1 artefacts **directly in the repo**, one step at a time with an explanation each time (rules 4 + 5) — root `pom.xml` (aggregator + parent), `.mvn/wrapper` + `mvnw`/`mvnw.cmd`, `.editorconfig`, `README.md`, `ci.yml`. (`.gitignore` already exists and is fixed — rev 12.)
+**NEXT ACTION — Day 2, step 2.** Day 2 step 1 (the six nouns + the ownership split) was **presented but never confirmed**. Before drawing any tables, get an answer to:
+1. Are the six nouns right — `User`, `Event`, `Source`, `Subscription`, `Notification record`, `Order`?
+2. Does the ownership split hold — `subscriptions` live in `catalog` beside `events`, with `user_id` stored as a **plain number** (no cross-service FK)?
 
-**Standing constraints (do not violate):** write code directly, but **one step per turn and explain it** (rules 4 + 5) · topic gate before every topic (rule 3) · never change git history unasked (rule 10) · keep scope small (rule 8) · always give tradeoff + failure mode + 10x answer (rule 12) · never re-bundle threading / third-party APIs / circuit breakers (section 1.1).
+Once confirmed: draw the tables (columns, types, and the reason for each), then relationships, indexes, the Flyway migration, and finally the JPA mapping.
+
+**Standing constraints (do not violate):** write code directly, but **one step per turn and explain it** (rules 4 + 5) · topic gate before every topic (rule 3) · **the user runs git — only propose the command and explain why** (rule 10) · keep scope small (rule 8) · always give tradeoff + failure mode + 10x answer (rule 12) · never re-bundle threading / third-party APIs / circuit breakers (section 1.1).
 
 ---
 
@@ -747,13 +751,15 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | rev 11 | Docs moved to `resources/docs/`; recorded the `.gitignore` `resources/` bug as a known issue in section 0; added pending decision P6 (OIDC depth) |
 | rev 12 | **Fixed the `.gitignore` `resources/` bug** (bare pattern removed, warning comment added, re-verified); user granted the agent write access to the repo (rule 4 rewritten); rule 5 strengthened to "do not go too fast"; added section 4.4 complete tool/technology inventory |
 | rev 13 | Activated **JDK 21** via user-level `JAVA_HOME` (old values backed up to `C:\Users\Nikhil\jdk-env-backup.txt`); verified `mvn` now runs on Java 21; recorded the whole local environment in section 11.3 |
+| rev 14 | **Workflow change: the user now runs every git command** (rule 10 rewritten — the agent only proposes the command and explains why). Recorded a re-teach obligation for `CorrelationIdFilter` / `ProblemSupport` **including the Spring Security filter chain**. Added `@Transactional` in depth (2.7), "prove the concurrency bug before fixing it" (8.5), and a proposed reactive lab (Day 25) |
+| rev 15 | Rewrote `need.txt` as a **COVERED / NOT COVERED** map derived from the resume, with Q1–Q4 answered inside it; added **`index.md`** as the documentation entry point and repointed `README.md` and rule 1 at it; replaced the stale "zero code written" status block |
 
 ### 11.2 Work status
 | Area | Status |
 |---|---|
 | Planning / architecture | **DONE** — `resources/docs/plan.md` (this file) |
 | Product spec | **DONE** — `resources/docs/projectDetails.md` |
-| Any code | **STARTED** — `libs/exr-common`: correlation-id filter + 5 passing tests; error model pending |
+| Any code | **`libs/exr-common` done for now** — `CorrelationIdFilter`, `ProblemSupport` + `GlobalExceptionHandler`, `ExrCommonAutoConfiguration`; **11 tests green** |
 | `.gitignore` | **DONE and verified** — the `resources/` bug is fixed (rev 12) |
 | Build files (`pom.xml`, Maven wrapper) | **DONE** — root aggregator `pom.xml` (Java 21, `packaging=pom`) + Maven wrapper pinning **Maven 3.9.15**; verified with `mvnw.cmd -v` |
 | `README.md`, `.editorconfig`, `.gitattributes` | **DONE** |
@@ -761,7 +767,8 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | CI pipeline | **DONE** — `.github/workflows/ci.yml`, first run green on `master` (run 42940713385). `mvnw` is committed as `100755` |
 | Docs location | **MOVED** — `docs/` → `resources/docs/` (end of Day 0) |
 | Local infra (Docker Compose, LocalStack) | **NOT STARTED** |
-| Curriculum Days 1–22 | **NOT STARTED** — 0 of ~150 checkboxes ticked |
+| Curriculum | **Day 1 complete** (1.1–1.4 ✅, exit test met) · **Day 2 in progress**: step 1 (nouns + ownership) presented, awaiting confirmation |
+| Documentation set | **`index.md`** (entry point) · `plan.md` (manual) · `projectDetails.md` (spec) · `need.txt` (COVERED / NOT COVERED map with Q1–Q4 answered) |
 
 ### 11.3 Local environment (verified 2026-10-28)
 
