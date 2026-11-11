@@ -473,8 +473,8 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 - [x] 1.1 Monorepo layout, aggregator `pom.xml`, Maven wrapper, `.gitignore`, `.editorconfig`, `README.md` — **done**; directories are created as modules appear (git cannot store empty directories)
 - [x] 1.2 Git model: trunk-based vs GitFlow, Conventional Commits, feature branches, PR review, `.gitattributes` — **done**; repo initialised on `main`, LF enforced in the index, first commit `c0985c1`
 - [x] 1.3 GitHub Actions smoke pipeline (`ci.yml`: checkout → JDK 21 → `mvnw verify`), branch protection, required checks — **done**; first run on `master` succeeded ([run 42940713385](https://github.com/electronik54/TW_systemArch/actions/runs/42940713385)). Branch protection still to be enabled in the GitHub UI (needs the check name `Build and test (Java 21)`)
-- [~] 1.4 `libs/exr-common`: RFC 7807 error model + correlation-id filter — **correlation-id filter ✅ + 5 unit tests ✅**; remaining: RFC 7807 error model + Spring Boot auto-configuration (so services get it without registering it by hand)
-- *Exit test:* `mvnw verify` green locally **and** in Actions; user can explain why build+test gates run on PR, not only on main.
+- [x] 1.4 `libs/exr-common`: RFC 7807 error model + correlation-id filter — **done**: `CorrelationIdFilter` (sanitised, MDC, `finally` cleanup), `ProblemSupport` + `GlobalExceptionHandler` (RFC 7807, no internal leakage, Spring statuses preserved), `ExrCommonAutoConfiguration` + `AutoConfiguration.imports`. **11 unit tests green.** Remaining: `@WebMvcTest` coverage of the handler belongs to Day 3
+- *Exit test:* ✅ **MET** — `./mvnw verify` is green locally **and** in Actions (run 42940713385), and the user can explain why gates run on **both** PR and push, not just one (see section 11.4).
 
 ### Phase 1 — Domain, data, first service
 **DAY 2 — Domain modelling + PostgreSQL + Hibernate**
@@ -773,6 +773,45 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 **Known caveat (harmless, but know the answer if asked):** bare `java -version` reports **17** in a fresh terminal, because the *machine* PATH lists Microsoft JDK 17 first and a *user* PATH entry cannot override a machine entry. Our builds are unaffected — `mvnw` and Maven resolve the JDK from `JAVA_HOME`, which is exactly how CI pipelines and containers do it. To make `java` itself report 21, reorder or remove that entry in the **System** environment variables (needs admin).
 
 **Resume point:** see section 0. Nothing is implemented; the next action is the topic gate plus pending decisions P1 and P2.
+
+---
+
+### 11.4 Phase 0 revision — in plain words
+
+**What Phase 0 delivered**
+
+| # | Thing | Plain meaning |
+|---|---|---|
+| 1 | Maven parent POM (`packaging=pom`) | The master control file. Holds every app under it and controls all library versions in one place. |
+| 2 | Maven wrapper (`mvnw`) | A copy of the build tool stored *with the code*, so every machine uses the same one. |
+| 3 | `.gitignore` | The "do not upload this" list — secrets, build output, IDE files. |
+| 4 | `.editorconfig` | A polite **request** to editors about spacing and line endings. |
+| 5 | `.gitattributes` | The firm **rule** git obeys when storing files — no CRLF in the repository, ever. |
+| 6 | `README.md` | The front door: what this is, how to build it, what the conventions are. |
+| 7 | `.github/workflows/ci.yml` | A robot that rebuilds and tests everything on every upload. |
+| 8 | `libs/exr-common` | The small shared box: request "claim tickets" + one error shape, wired in automatically. |
+
+**The four separate things that had to be pinned** (this is the reproducibility interview answer)
+1. **JDK 21** → `JAVA_HOME` on a machine, `actions/setup-java` in CI
+2. **Build tool** → the Maven wrapper (`.mvn/wrapper/maven-wrapper.properties`)
+3. **Library versions** → the parent POM
+4. **Line endings** → `.gitattributes`
+
+Reproducibility is not one setting; it is all four.
+
+**Why the pipeline runs on both `pull_request` and `push`:** the PR run tests the *merged* result (what would actually land), so a broken branch never reaches `master`; the push run guards `master` itself against direct pushes and merge commits.
+
+**Bugs caught in Phase 0 — all of them invisible in the code**
+1. A `resources/` rule in `.gitignore` would have silently dropped `src/main/resources`, `src/test/resources` **and** the planning docs from the repo.
+2. `mvnw` was committed as `100644` → `Permission denied` on Linux and in CI, while working fine on Windows.
+3. Two JDKs were installed and Maven was quietly using 17.
+4. Four files were CRLF while the rule demanded LF — proof that `.editorconfig` advises but `.gitattributes` enforces.
+
+**Test status:** 11 unit tests, all green; `./mvnw verify` green locally **and** in Actions.
+
+**Deliberately deferred:** `@WebMvcTest` coverage of the exception handler (Day 3) · the branch-protection toggle in the GitHub UI (needs check name `Build and test (Java 21)`) · Postgres/Redis/Kafka (Days 2, 9, 11).
+
+**Decisions still open, none blocking Phase 1:** P3 (Day 23 JVM internals), P4 (Day 24 Kubernetes), P5 (Tier 2 additions).
 
 ---
 
