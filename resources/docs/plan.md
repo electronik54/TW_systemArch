@@ -472,8 +472,8 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 **DAY 1 — Repo skeleton + git + first pipeline**
 - [x] 1.1 Monorepo layout, aggregator `pom.xml`, Maven wrapper, `.gitignore`, `.editorconfig`, `README.md` — **done**; directories are created as modules appear (git cannot store empty directories)
 - [x] 1.2 Git model: trunk-based vs GitFlow, Conventional Commits, feature branches, PR review, `.gitattributes` — **done**; repo initialised on `main`, LF enforced in the index, first commit `c0985c1`
-- [ ] 1.3 GitHub Actions smoke pipeline (`ci.yml`: checkout → JDK 21 → `mvnw verify`), branch protection, required checks
-- [ ] 1.4 `libs/exr-common`: RFC 7807 error model + correlation-id filter (agent creates it, explaining before and after — rule 4/5)
+- [x] 1.3 GitHub Actions smoke pipeline (`ci.yml`: checkout → JDK 21 → `mvnw verify`), branch protection, required checks — **done**; first run on `master` succeeded ([run 42940713385](https://github.com/electronik54/TW_systemArch/actions/runs/42940713385)). Branch protection still to be enabled in the GitHub UI (needs the check name `Build and test (Java 21)`)
+- [~] 1.4 `libs/exr-common`: RFC 7807 error model + correlation-id filter — **correlation-id filter ✅ + 5 unit tests ✅**; remaining: RFC 7807 error model + Spring Boot auto-configuration (so services get it without registering it by hand)
 - *Exit test:* `mvnw verify` green locally **and** in Actions; user can explain why build+test gates run on PR, not only on main.
 
 ### Phase 1 — Domain, data, first service
@@ -745,11 +745,12 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 |---|---|
 | Planning / architecture | **DONE** — `resources/docs/plan.md` (this file) |
 | Product spec | **DONE** — `resources/docs/projectDetails.md` |
-| Any code | **NOT STARTED** |
+| Any code | **STARTED** — `libs/exr-common`: correlation-id filter + 5 passing tests; error model pending |
 | `.gitignore` | **DONE and verified** — the `resources/` bug is fixed (rev 12) |
 | Build files (`pom.xml`, Maven wrapper) | **DONE** — root aggregator `pom.xml` (Java 21, `packaging=pom`) + Maven wrapper pinning **Maven 3.9.15**; verified with `mvnw.cmd -v` |
-| `README.md`, `.editorconfig`, `ci.yml` | **NOT STARTED** |
-| git repository | **NOT INITIALISED** — no `.git` in the workspace |
+| `README.md`, `.editorconfig`, `.gitattributes` | **DONE** |
+| git repository | **DONE** — `origin` = `https://github.com/electronik54/TW_systemArch.git`, **default branch is `master`** (not `main`), first commits pushed |
+| CI pipeline | **DONE** — `.github/workflows/ci.yml`, first run green on `master` (run 42940713385). `mvnw` is committed as `100755` |
 | Docs location | **MOVED** — `docs/` → `resources/docs/` (end of Day 0) |
 | Local infra (Docker Compose, LocalStack) | **NOT STARTED** |
 | Curriculum Days 1–22 | **NOT STARTED** — 0 of ~150 checkboxes ticked |
