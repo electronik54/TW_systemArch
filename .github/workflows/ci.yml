@@ -1,0 +1,58 @@
+name: CI
+
+# Why run on BOTH pull_request and push?
+#   pull_request → gates the merge (broken code never reaches the default branch)
+#   push         → protects the default branch itself (direct pushes, merge commits)
+# Running only on push means the breakage has already landed.
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch: {}
+
+# A newer push to the same branch cancels the in-flight run for the older commit.
+# Without this you pay for CI on code nobody is waiting for.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this workflow only reads the repository.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test (Java 21)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The JDK comes from here; Maven comes from the repo (.mvn/wrapper).
+      # cache: maven keys ~/.m2/repository on the pom hashes.
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Canary step: fails fast and unambiguously if the wrapper is broken,
+      # missing, or committed without the executable bit.
+      - name: Verify Maven wrapper
+        run: ./mvnw -v
+
+      # -B batch mode (no ANSI), -ntp no transfer progress (readable logs)
+      - name: Build and test
+        run: ./mvnw -B -ntp verify
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: '**/target/surefire-reports/**'
+          if-no-files-found: ignore
