@@ -788,8 +788,10 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | 4 | `.editorconfig` | A polite **request** to editors about spacing and line endings. |
 | 5 | `.gitattributes` | The firm **rule** git obeys when storing files — no CRLF in the repository, ever. |
 | 6 | `README.md` | The front door: what this is, how to build it, what the conventions are. |
-| 7 | `.github/workflows/ci.yml` | A robot that rebuilds and tests everything on every upload. |
+| 7 | `.github/workflows/ci.yml` | **GitHub Actions** (I sometimes call it "the robot"): GitHub's own machines rebuild and test the project on every upload. GitHub only looks in `.github/workflows/`; the runner is a fresh Linux VM with **no Maven installed** — hence the wrapper. |
 | 8 | `libs/exr-common` | The small shared box: request "claim tickets" + one error shape, wired in automatically. |
+
+**Note — who actually consumes `exr-common`:** it is a **library**, not a service; it never runs alone, it is compiled into whichever service declares it. `identity`, `catalog`, `notification` and `payment` are servlet MVC, so the auto-configuration applies. The **`api-gateway` is reactive (WebFlux/Netty)** — servlet `Filter` and `@RestControllerAdvice` do not exist there, so it needs its own reactive correlation-id handling (Day 7). Spring Batch jobs and Kafka-only workers are non-web, so the condition correctly backs off. Consumption is opt-in via a `pom.xml` dependency; the parent provides the version.
 
 **The four separate things that had to be pinned** (this is the reproducibility interview answer)
 1. **JDK 21** → `JAVA_HOME` on a machine, `actions/setup-java` in CI
