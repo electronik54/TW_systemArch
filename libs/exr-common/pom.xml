@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Inherits groupId, version, Java 21, encoding and every managed dependency
+    version from the root parent. So this file stays tiny.
+  -->
+  <parent>
+    <groupId>com.kodegravity.exr</groupId>
+    <artifactId>exr-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <!--
+      This module lives two directories deep (libs/exr-common).
+      Maven's default assumption is ../pom.xml, which would be wrong here, so we
+      point at the real parent explicitly. Get this wrong and Maven fails with
+      "Non-resolvable parent POM".
+    -->
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>exr-common</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EXR :: Common</name>
+  <description>Shared, domain-free web and observability primitives</description>
+
+  <dependencies>
+    <!--
+      optional=true means: "I am compiled against this, but I do not push it onto
+      anyone who depends on me." A batch job or a Kafka consumer that reuses this
+      library must not suddenly get a web server and port 8080 forced on it.
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <optional>true</optional>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+</project>

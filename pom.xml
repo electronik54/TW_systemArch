@@ -42,13 +42,10 @@
 
   <modules>
     <!--
-      Deliberately empty for now. Modules are registered here as they are created:
-        <module>libs/exr-common</module>
-        <module>services/api-gateway</module>
-        ...
-      Never declare a module directory that does not exist yet - Maven fails the
-      whole build with "Child module ... does not exist".
+      Registered here as each module is created. The reactor builds them in
+      dependency order, so exr-common is built before the services that use it.
     -->
+    <module>libs/exr-common</module>
   </modules>
 
 </project>
