@@ -46,6 +46,22 @@
       dependency order, so exr-common is built before the services that use it.
     -->
     <module>libs/exr-common</module>
+    <module>services/catalog-service</module>
   </modules>
+
+  <!--
+    Versions for OUR OWN modules, so a service can depend on exr-common without
+    repeating the version number. External libraries get their versions from the
+    Spring Boot parent's dependencyManagement; this block adds to it.
+  -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.kodegravity.exr</groupId>
+        <artifactId>exr-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
 </project>

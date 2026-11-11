@@ -2,19 +2,21 @@
 
 > **Product:** EXR (Event eXploreR) — release-date & live-event tracking with notifications.
 > **User goal:** learn production-grade system design/architecture hands-on (Java 21 + microservices) using this project as the vehicle, and prepare for a system-design interview.
-> **Last updated:** Day 1 closeout (rev 15: user now drives git · `need.txt` rewritten as a COVERED/NOT COVERED map · `index.md` added as the entry point · stale status block replaced)
+> **Last updated:** Day 2 (rev 18: **rule 16 — every step now names the technology it teaches** · read replicas promoted, DR + secrets days added · `catalog-service` module and `V1__catalog_init.sql` written, **not yet executed**)  
 > **Companion docs:** `resources/docs/projectDetails.md` (feature spec) · `resources/docs/decisions.md` (ADR log, created Phase 1)
 
 ---
 
-## 0. RESUME HERE (state as of end of Day 1 — Phase 0 complete, Day 2 step 1 awaiting confirmation)
+## 0. RESUME HERE (paused after Day 2.3 — the V1 migration is written but NOT yet executed)
 
-**Status: Phase 0 complete; Day 1 complete.** The repo is initialised on `master` and pushed to
-`https://github.com/electronik54/TW_systemArch`, with CI green. `pom.xml` (aggregator + parent),
-the Maven wrapper (3.9.15), `.gitattributes`, `.editorconfig`, `.gitignore`, `README.md` and
-`.github/workflows/ci.yml` are in place. `libs/exr-common` holds the correlation-id filter, the
-RFC 7807 error model and its auto-configuration, with **11 passing tests**. **No services exist
-yet** — the next work is Day 2 (data design).
+**Status.** Day 1 (Phase 0) is complete. Day 2 is in progress:
+
+- `services/catalog-service` module exists — **pom only, no Java source** — and builds green in the reactor.
+- `V1__catalog_init.sql` — 4 tables (`sources`, `events`, `subscriptions`, `event_reports`) + 12 indexes — is **written but has never been executed**. Verification is blocked on **Docker Desktop not being started**.
+- `libs/exr-common` is complete: correlation-id filter + RFC 7807 error model + auto-configuration, **11 tests green**.
+- CI is green on `master`; repo is `https://github.com/electronik54/TW_systemArch` (default branch `master`).
+
+**Doc map:** start at `index.md` → `plan.md` (this file) → `projectDetails.md`. `need.txt` is the learning coverage map; `catalog/schema.md` is the catalog data model in full.
 
 **Docs live in `resources/docs/`** — start at `index.md`, then `plan.md` (this file) and
 `projectDetails.md`; `need.txt` holds the learning coverage map.
@@ -44,18 +46,21 @@ yet** — the next work is Day 2 (data design).
 | P2 | **Which topic starts** the next session? | Day 1.1 repo skeleton · Day 2 domain+Postgres · Day 10 threading · Day 21 Spring Batch · Day 22 GraphQL — user has not chosen | section 9 |
 | P3 | Is **Day 23 = JVM & core-Java internals**? | yes / no | section 9, Phase EXTRA |
 | P4 | Is **Day 24 = Kubernetes essentials for a Java dev**? | yes / no | section 9, Phase EXTRA |
-| P5 | Adopt any **Tier 2** additions? | read replica · load shedding · feature flags · saga orchestration — individually | section 3.2 |
+| P5 | Adopt any **Tier 2** additions? | load shedding · feature flags · saga orchestration — individually *(read replica already promoted to 17.3)* | section 3.2 |
 | P6 | **How deep on OIDC?** OAuth2/OIDC + JWT are *already* covered (Days 4, 5, 7.2, 7.6, 18.2, 22.7). The genuine gap is OIDC as an **external IdP**: OIDC discovery (`.well-known`), `id_token` vs `access_token`, nonce/state, token introspection (RFC 7662), and the **build-vs-buy "who is the authorization server"** decision (own it vs Keycloak vs Auth0/Cognito) | yes / no | section 9, Days 5–6 |
 
 **RESOLVED at the start of Day 1 (2026-10-28):** **P1** = keep the current day order (no walking-skeleton reorder) · **P2** = start at **Day 1.1** (repo skeleton) · **P6** = defer — Days 4–7 stay as written, no external IdP for now. · **P3/P4/P5** remain open (nothing blocked by them before Day 17).
 
 **Also still open:** the five questions in section 12 (git remote, AWS account + budget, TMDB/IGDB keys, Datadog availability, realistic session length).
 
-**NEXT ACTION — Day 2, step 2.** Day 2 step 1 (the six nouns + the ownership split) was **presented but never confirmed**. Before drawing any tables, get an answer to:
-1. Are the six nouns right — `User`, `Event`, `Source`, `Subscription`, `Notification record`, `Order`?
-2. Does the ownership split hold — `subscriptions` live in `catalog` beside `events`, with `user_id` stored as a **plain number** (no cross-service FK)?
+**NEXT ACTION — verify the migration, then continue Day 2.** The user paused here for a few hours.
 
-Once confirmed: draw the tables (columns, types, and the reason for each), then relationships, indexes, the Flyway migration, and finally the JPA mapping.
+1. **Start Docker Desktop.** It was not running when we paused, and it is the *only* blocker.
+2. Run `postgres:16` in a container, execute `V1__catalog_init.sql` against it, and confirm the tables (`\dt`) and indexes (`\di`) exist.
+3. Deliberately insert a duplicate **live** subscription to prove the partial unique index rejects it — the difference between "the rule is in the file" and "the rule is real".
+4. Then continue in order: **2.4** JPA/Hibernate mapping (`@Version`, avoid N+1, `@EntityGraph`), **2.5** Testcontainers repository test, **2.6** full-text search (`tsvector` + GIN — a perfect `V2` migration exercise), **2.7** `@Transactional` depth, **2.8** hierarchy, **2.9** lifecycle + reports.
+
+**Rules the agent must apply on resume:** rule 16 — **announce the technology at the start of every step**; rule 14 — plain language first, jargon in brackets; rule 10 — **the user runs git, only propose commands**.
 
 **Standing constraints (do not violate):** write code directly, but **one step per turn and explain it** (rules 4 + 5) · topic gate before every topic (rule 3) · **the user runs git — only propose the command and explain why** (rule 10) · keep scope small (rule 8) · always give tradeoff + failure mode + 10x answer (rule 12) · never re-bundle threading / third-party APIs / circuit breakers (section 1.1).
 
@@ -82,6 +87,9 @@ Once confirmed: draw the tables (columns, types, and the reason for each), then 
     (c) the **"what happens at 10x / 100x load"** answer.
     That is what a system-design interview actually grades.
 13. **Topic sessions must be < ~45 min of reading.** If a topic needs more, split it and say so.
+14. **LANGUAGE STYLE (user request, rev 16) — this is the default for every explanation.** Explain in **plain, everyday language first**, the way you would explain it to a smart colleague from a different team. Use analogies, short sentences and concrete examples. **After** the plain explanation, name the technical term in brackets — e.g. *"the library's quick-find list (a database **index**)"* — because the user needs the vocabulary for interviews. **Never lead with jargon.** Tradeoff tables are welcome; dense prose is not. If an explanation lands flat, re-tell it simpler rather than adding detail.
+15. **PER-SERVICE SCHEMA DOCS (user request, rev 16).** Every service that has a data model gets `resources/docs/<service-name>/schema.md`, written in the same plain language as rule 14, listing **every column, its type and its constraints**, plus the reason each choice was made. When the schema is already documented there, **do not re-explain it in chat** — point at the file. Update that file whenever the schema changes; it is the durable record, chat is not.
+16. **ANNOUNCE THE TECHNOLOGY AT THE START OF EVERY STEP (user request, rev 18).** The user's goal is to learn the **technologies**, not just to accumulate files. So every step must begin with a short header naming (a) **which technology this step teaches**, (b) **where it sits in the curriculum** (e.g. "Day 2.3"), and (c) **what problem it solves** — before any file is created. When a step touches several technologies (a Maven module + a Flyway migration + SQL DDL), name all of them and say explicitly which one is **the actual lesson** and which are supporting plumbing. Never leave the user guessing why a file appeared.
 
 ---
 
@@ -191,7 +199,7 @@ These are not extra features. They are **decisions the original plan left implic
 | H11 | **In-flight draining during deploy** — Kafka rebalance, SQS visibility extension | "how do you deploy without dropping work?" | Day 18 (18.7) | planned |
 | H12 | **Rate-limit algorithms** — token bucket vs sliding window vs leaky bucket + fairness | "how do you stop one tenant starving the rest?" | Day 7 (7.4, extended) | planned |
 
-**Tier 2 — optional additions (pending the user's yes/no):** read replica + replication-lag handling (Day 17) · load shedding, priority queues and `Retry-After` under overload (Day 10C) · runtime feature flags as a real component (Day 18) · saga *orchestration* (state machine) instead of pure choreography (Day 14).
+**Tier 2 — optional additions (pending the user's yes/no):** load shedding, priority queues and `Retry-After` under overload (Day 10C) · runtime feature flags as a real component (Day 18) · saga *orchestration* (state machine) instead of pure choreography (Day 14). *(Read replica + replication-lag handling was promoted from Tier 2 to a firm task on Day 17.3 — user request, rev 17.)*
 
 **Tier 3 — deliberately NOT adding**, but be ready to answer "would you add X?": multi-region active-active, service mesh, CQRS/event-sourcing, multi-tenancy, a hand-rolled API gateway, Kubernetes operators, Apollo-style schema federation (only *mentioned* on Day 22.10).
 
@@ -490,11 +498,13 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 **DAY 2 — Domain modelling + PostgreSQL + Hibernate**
 - [ ] 2.1 Bounded contexts and ownership: which service owns which table; why no cross-service joins
 - [ ] 2.2 ERD: events, sources, subscriptions, users, roles, audit, outbox, notification log (+ indexes and why)
-- [ ] 2.3 Flyway migrations (`V1__init.sql`), naming conventions, forward-only migrations, zero-downtime rules
+- [~] 2.3 Flyway migrations (`V1__catalog_init.sql`), naming conventions, forward-only migrations, zero-downtime rules — **written** at `services/catalog-service/src/main/resources/db/migration/V1__catalog_init.sql` (4 tables + 12 indexes); **NOT YET EXECUTED** — needs Docker running to verify against a real Postgres 16
 - [ ] 2.4 JPA mapping with Hibernate 6: records vs entities, `@Version`, `@Embedded`, avoid N+1 (`@EntityGraph`)
 - [ ] 2.5 Testcontainers integration test for repositories
 - [ ] 2.6 Full-text search in Postgres: `tsvector` + GIN index vs `LIKE`/trigram vs OpenSearch — pick and justify *(H3)*
 - [ ] 2.7 **`@Transactional` in depth** *(user request)*: where the boundary belongs (service layer, not controller), propagation (`REQUIRED` vs `REQUIRES_NEW`), rollback rules (runtime vs checked exceptions), isolation levels, and what a transaction does **not** protect you from (lost updates)
+- [ ] 2.8 **Sub-events / hierarchy**: `events.parent_event_id` (self-reference) for series→season→episode and tour→date; `subscriptions.subscription_scope` (`THIS_EVENT` / `THIS_AND_FUTURE` / `INCLUDE_CHILDREN`); tier inheritance from the parent with a per-child override; recursive query for descendants; and "contained in" vs "related" (a sequel is *not* a child) — see `resources/docs/catalog/schema.md` §12
+- [ ] 2.9 **Lifecycle & archiving**: `events.active_until` (release + grace for one-offs; last child + grace for containers; `now()` for cancelled). Archived events are never polled and refuse new subscriptions, and an admin's `HOT` marking is **capped** so it cannot outlive it. Plus the `event_reports` table (user flags an event + comment → admin queue ordered by report count) — see `resources/docs/catalog/schema.md` §13 and §14
 - *Exit test:* user can justify each index and explain why the catalogue is not `JOIN`ed to users.
 
 **DAY 3 — Catalog service REST API**
@@ -546,7 +556,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 **DAY 9 — Redis caching**
 - [ ] 9.1 Cache-aside vs write-through vs write-behind; what is safe to cache and what is not
 - [ ] 9.2 Key design, TTL strategy, source retention vs cache TTL, per-source TTL config
-- [ ] 9.3 Stampede / thundering herd: lock, single-flight, jittered TTL, stale-while-revalidate
+- [ ] 9.3 Stampede / thundering herd: lock, single-flight, jittered TTL, stale-while-revalidate — plus **freshness tiers** (`HOT` 5–15 min / `WARM` 1 h / `COLD` 1 day) with automatic promotion and decay, so churning events stay fresh without polling the dead ones
 - [ ] 9.4 Invalidation: TTL-first vs explicit evict; cache versioning; multi-instance consistency
 - [ ] 9.5 Metrics: hit ratio, evictions; Redis as rate-limit + idempotency + denylist store
 - *Exit test:* user can describe a cache outage degrading to DB but never to 500s.
@@ -566,6 +576,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 - [ ] 10B.3 Pagination, incremental sync (changed-since), mapping external DTOs → internal model, source-data versioning
 - [ ] 10B.4 Error taxonomy: 4xx (don't retry) vs 5xx/429 (retry with jitter, respect `Retry-After`), idempotency of outbound calls
 - [ ] 10B.5 Testing with WireMock (slow, down, 429, malformed) + per-source rate budgets
+- [ ] 10B.6 **Cheap freshness checks**: `ETag`/`If-None-Match` and `Last-Modified`/`If-Modified-Since` where the source supports them, falling back to full fetch + `details_hash` comparison. **A `304` still costs a request against the rate limit** — it saves bandwidth, not quota (`resources/docs/catalog/schema.md` §11)
 - *Exit test:* user can explain what happens to the catalogue API when TMDB is down or throttling for an hour.
 
 **DAY 10C — Resilience: circuit breakers & friends**
@@ -597,12 +608,13 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 
 ### Phase 5 — Notification, payment
 **DAY 13 — Notification service**
-- [ ] 13.1 Reminder scheduling: cron vs delayed message vs scheduler + "due" table (survives restarts)
-- [ ] 13.2 Notification preferences, quiet hours, timezone handling, deduplication
+- [ ] 13.1 Reminder scheduling: cron vs delayed message vs scheduler + "due" table (survives restarts) — **and: the reminder must be computed at subscribe time, never at firing time**, so an expired/purged event cannot silently cancel it (`resources/docs/catalog/schema.md` §9)
+- [ ] 13.2 Notification preferences, quiet hours, timezone handling, deduplication — plus **churn control**: coalesce several changes in a window into one notice, rate-limit to one date-change notice per event per 24 h, and notify only when the change is *significant* (date moves ≥ 1 day, or status changes)
 - [ ] 13.3 Email via SES/SMTP + templating; in-app notification centre
 - [ ] 13.4 Calendar: `.ics` generation, `VEVENT`/`VALARM`, feed URL design, ETag/`If-None-Match`
 - [ ] 13.5 Delivery tracking: notification log table, retries, DLQ, provider bounce handling
 - [ ] 13.6 **GDPR distributed delete**: a `UserDeleted` event fanning out to catalog/notification/payment, tombstones vs hard delete, anonymised audit trail, and how to prove deletion completed *(H6)*
+- [ ] 13.7 **Hierarchy digests**: a series subscription with `INCLUDE_CHILDREN` produces notifications per *child* event; when several children land together (a whole season), send **one digest**, never 24 pings (`resources/docs/catalog/schema.md` §12)
 - *Exit test:* user can explain how a 100k-user release-day burst is absorbed.
 
 **DAY 14 — Mock payment + webhooks + saga**
@@ -634,10 +646,12 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 **DAY 17 — Terraform + AWS**
 - [ ] 17.1 Terraform fundamentals: state (S3 + DynamoDB lock), modules, workspaces/envs, plan vs apply, drift
 - [ ] 17.2 Network: VPC, public/private subnets, NAT, security groups vs NACLs, ALB + TLS (ACM)
-- [ ] 17.3 Data: RDS Postgres (Multi-AZ, backups, PITR), ElastiCache Redis (replication, failover), S3, Secrets Manager
+- [ ] 17.3 Data: RDS Postgres — **Multi-AZ vs read replica vs both** (availability is *not* the same as read scaling), **replication lag** and what silently breaks when you read from a lagging replica, ElastiCache Redis (replication, failover), S3
 - [ ] 17.4 Compute: ECS Fargate (service, task def, autoscaling on CPU/queue) vs EKS (node groups, HPA, IRSA) — pick the default and defend it
 - [ ] 17.5 IAM least privilege, GitHub OIDC role, ECR, cost guardrails
 - [ ] 17.6 **RPO/RTO definition + a real restore drill**: define targets, restore RDS from a snapshot into a scratch instance, time it, and document the result *(H9)*
+- [ ] 17.7 **Disaster recovery strategies** — the ladder: backup-and-restore → pilot light → warm standby → multi-site active/active. RPO vs RTO maths for each, what each costs, and **cross-region snapshot copy** (the only thing that survives losing a region). Includes the AZ-loss drill from 20.3, done rather than read
+- [ ] 17.8 **Secrets management** — AWS Secrets Manager vs SSM Parameter Store (cost/rotation/limits), automatic rotation, **IAM database authentication** (no password at all), why secrets must never sit in an image/env file/`application.yml`, how the task gets them (execution role), keeping Terraform state free of secrets, local dev with a git-ignored `.env`, and secret scanning in CI (18.2). Reference: `resources/docs/catalog/schema.md` §15
 - *Exit test:* user can draw the AWS topology and estimate a monthly cost ballpark.
 
 **DAY 18 — CI/CD with GitHub Actions**
@@ -730,6 +744,10 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | D-010 | Day 0 | Added **Phase EXTRA** — an open-ended, user-extensible phase numbered from Day 21, starting with **Spring Batch** (Day 21) | user request; Spring Batch fits the initial TMDB/IGDB backfill, retention purge and payment reconciliation, and teaches restartability/idempotency | yes |
 | D-011 | Day 0 | **GraphQL is added alongside REST** as a thin client-facing `graphql-bff` service (Day 22, section 3.4). REST stays the internal east-west contract and the contract for simple/cacheable reads | user wants to learn GraphQL because multiple client types need different data shapes. Cost accepted: a 6th deployable, N+1/caching/query-cost concerns. Alternative if service count must stay at 5: skip GraphQL | yes |
 | D-012 | Day 0 | **The agent writes code directly into the repo**, one step per turn, explaining before and after — supersedes D-005 | user explicitly granted write access, and asked for step-by-step teaching so no step is missed | yes |
+| D-013 | Day 2 | **Retention purges the *details*, never the whole row.** `events` is split into a skeleton (`id`, `source`, `external_id`, `title`, `release_date`, `status`) kept indefinitely and details that expire. Expired rows become `availability='STALE'` and are **re-hydrated on demand** from the source, asynchronously, behind a single-flight lock. Per-source `expiry_policy` (`KEEP_STUB` / `DELETE_ALL`) because the licence decides, not us | user's idea. It fixes three problems at once: deletions no longer silently destroy subscriptions, autocomplete/history keep working, and we only pay for upstream calls on items someone actually looks at. Cost: two-state records, a re-hydration path, and a per-source legal check | yes — but the `availability` column and re-hydration path would have to be added anyway |
+| D-014 | Day 2 | **Per-service schema docs:** every service gets `resources/docs/<service>/schema.md` (plain language, every column + constraint + reason). The chat is not the durable record | user request; avoids re-explaining the schema and survives context loss | yes |
+| D-015 | Day 2 | **Editorial override layer is IN** (`catalog/schema.md` §10): admin-authored `title_override` / `release_date_override` + `overridden_fields` precedence marker. The purge never touches them; source sync never overwrites an overridden field. Plus a **"verified accurate"** action (cheap editorial confirmation) and the **`event_reports`** crowd-sourced flag (§14). Copy-paste blocking is an admin-UX choice only — it is recorded as **not** providing legal protection; the legal shield is `expiry_policy` | user decision. It makes expiry survivable: after expiry the event still shows a title and date, because those are *our* record rather than the supplier's | yes |
+| D-016 | Day 2 | **Database hosting:** local = Postgres in Docker Compose · CI = Testcontainers · dev/staging = RDS `db.t4g.micro` single-AZ · **production = Amazon RDS for PostgreSQL, Multi-AZ, private subnet, PITR, deletion protection**. Mutations never run on app startup — Flyway runs as a **separate one-off task before** the new service tasks start (§15 of `catalog/schema.md`) | managed backups/failover/patching beats self-hosting at this size; the migration ordering avoids the H10 race | yes |
 
 ---
 
@@ -753,6 +771,9 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | rev 13 | Activated **JDK 21** via user-level `JAVA_HOME` (old values backed up to `C:\Users\Nikhil\jdk-env-backup.txt`); verified `mvn` now runs on Java 21; recorded the whole local environment in section 11.3 |
 | rev 14 | **Workflow change: the user now runs every git command** (rule 10 rewritten — the agent only proposes the command and explains why). Recorded a re-teach obligation for `CorrelationIdFilter` / `ProblemSupport` **including the Spring Security filter chain**. Added `@Transactional` in depth (2.7), "prove the concurrency bug before fixing it" (8.5), and a proposed reactive lab (Day 25) |
 | rev 15 | Rewrote `need.txt` as a **COVERED / NOT COVERED** map derived from the resume, with Q1–Q4 answered inside it; added **`index.md`** as the documentation entry point and repointed `README.md` and rule 1 at it; replaced the stale "zero code written" status block |
+| rev 16 | **Two new working rules:** 14 = explain in **plain language first**, jargon in brackets afterwards (this is now the default style); 15 = every service gets `resources/docs/<service>/schema.md` with every column, type and constraint, and the schema is **not** re-explained in chat. Added **D-013** (retention purges *details*, keeps the *skeleton*, re-hydrates on demand) and **D-014** (per-service schema docs). Created `resources/docs/catalog/schema.md` |
+| rev 17 | User asked whether read replicas, migrations, DR and secrets are covered — audit found two gaps. **Promoted read replicas from Tier 2 to a firm task (17.3)**, added **17.7 (DR strategy ladder + cross-region)** and **17.8 (secrets management)**. Also recorded D-015 (override layer accepted) and D-016 (database hosting per environment) |
+| rev 18 | Added **rule 16 — announce the technology at the start of every step** (the user could not tell what each file was teaching). Created `services/catalog-service` (module + `dependencyManagement` in the parent) and wrote **`V1__catalog_init.sql`** — 4 tables, 12 indexes. Renamed `subscriptions.unsubscribed_at` → `ended_at` + `end_reason` while writing the SQL, and synced `schema.md` |
 
 ### 11.2 Work status
 | Area | Status |
@@ -765,10 +786,12 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | `README.md`, `.editorconfig`, `.gitattributes` | **DONE** |
 | git repository | **DONE** — `origin` = `https://github.com/electronik54/TW_systemArch.git`, **default branch is `master`** (not `main`), first commits pushed |
 | CI pipeline | **DONE** — `.github/workflows/ci.yml`, first run green on `master` (run 42940713385). `mvnw` is committed as `100755` |
+| `services/catalog-service` | **MODULE CREATED** — pom only (web + JPA + Flyway 10 + postgres + exr-common + Testcontainers); builds green in the reactor. No Java source yet |
+| `V1__catalog_init.sql` | **WRITTEN, NOT VERIFIED** — 4 tables (`sources`, `events`, `subscriptions`, `event_reports`) + 12 indexes. Execution blocked on Docker Desktop being started |
 | Docs location | **MOVED** — `docs/` → `resources/docs/` (end of Day 0) |
 | Local infra (Docker Compose, LocalStack) | **NOT STARTED** |
 | Curriculum | **Day 1 complete** (1.1–1.4 ✅, exit test met) · **Day 2 in progress**: step 1 (nouns + ownership) presented, awaiting confirmation |
-| Documentation set | **`index.md`** (entry point) · `plan.md` (manual) · `projectDetails.md` (spec) · `need.txt` (COVERED / NOT COVERED map with Q1–Q4 answered) |
+| Documentation set | **`index.md`** (entry point) · `plan.md` (manual) · `projectDetails.md` (spec) · `need.txt` (COVERED / NOT COVERED map) · **`catalog/schema.md`** (catalog schema, plain language, every column + constraint) |
 
 ### 11.3 Local environment (verified 2026-10-28)
 
