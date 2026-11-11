@@ -470,10 +470,10 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 
 ### Phase 0 — Foundations & repo hygiene
 **DAY 1 — Repo skeleton + git + first pipeline**
-- [~] 1.1 Monorepo layout, aggregator `pom.xml`, Maven wrapper, `.gitignore`, `.editorconfig`, `README.md` — **`pom.xml` ✅, Maven wrapper ✅, `.gitignore` ✅**; remaining: `.editorconfig`, `README.md`
-- [ ] 1.2 Git model: trunk-based vs GitFlow, Conventional Commits, feature branches, PR review, `.gitattributes`
+- [x] 1.1 Monorepo layout, aggregator `pom.xml`, Maven wrapper, `.gitignore`, `.editorconfig`, `README.md` — **done**; directories are created as modules appear (git cannot store empty directories)
+- [x] 1.2 Git model: trunk-based vs GitFlow, Conventional Commits, feature branches, PR review, `.gitattributes` — **done**; repo initialised on `main`, LF enforced in the index, first commit `c0985c1`
 - [ ] 1.3 GitHub Actions smoke pipeline (`ci.yml`: checkout → JDK 21 → `mvnw verify`), branch protection, required checks
-- [ ] 1.4 `libs/exr-common`: RFC 7807 error model + correlation-id filter (taught in chat, then pasted)
+- [ ] 1.4 `libs/exr-common`: RFC 7807 error model + correlation-id filter (agent creates it, explaining before and after — rule 4/5)
 - *Exit test:* `mvnw verify` green locally **and** in Actions; user can explain why build+test gates run on PR, not only on main.
 
 ### Phase 1 — Domain, data, first service
