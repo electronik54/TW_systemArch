@@ -1,0 +1,10 @@
+
+need to learn system design/architecture using java21, microservices with scaling, unit testing, git/CICD/git Actions, AWS(gateway, EKS, ECS...), terraform, datadog for monitoring, postgress with hibernate and redis caching, spring security, oAuth2 with OICD and JWT, queues (SQS and kafka) and SNS, threading, access to 3rd party APIs , circuit breakers, rate limiting.
+
+
+
+QUESTIONS:
+- are we using webflux?
+- are we using r2dbc or JPA? can we use r2dbc in one service and JPA in another to see how things work and to understand its clear comparison?
+- I also want to under the @Transactional annotation, can we implement that? I need to understand how concurrent SQL write oprations and its failure is handled.
+- are we implenmenting SAGA pattern

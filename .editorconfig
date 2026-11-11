@@ -1,0 +1,34 @@
+# EditorConfig — https://editorconfig.org
+#
+# Purpose: one description of "how a file should look", honoured by the editor
+# (IntelliJ, VS Code, Eclipse...) instead of being re-declared in every IDE config.
+#
+# It does NOT enforce anything at commit time — that is .gitattributes + CI (Day 1.2).
+# EditorConfig only stops your editor from producing the wrong bytes in the first place.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# 2 spaces reads better for data/config and frontend files
+[*.{yml,yaml,json,jsonc,ts,tsx,js,jsx,css,scss,html,sql}]
+indent_size = 2
+
+# In Markdown, two trailing spaces are a significant hard line break — do not strip them
+[*.md]
+trim_trailing_whitespace = false
+
+# Windows scripts are parsed by cmd.exe, which is happier with CRLF
+[*.{cmd,bat}]
+end_of_line = crlf
+
+# Shell launch scripts must stay LF or they break on Linux/macOS (and in CI)
+[mvnw]
+end_of_line = lf
+insert_final_newline = true

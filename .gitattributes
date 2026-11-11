@@ -1,0 +1,40 @@
+# Git line-ending & binary policy — the ENFORCEMENT layer.
+# .editorconfig only ASKS editors to behave; .gitattributes makes git guarantee it.
+#
+#   text=auto : git detects text files and normalises them to LF inside the repository
+#   eol=lf    : force LF in the working tree too, on every OS
+#
+# Why LF everywhere instead of "native"?
+#   1. our services run in Linux containers and on Linux CI runners
+#   2. shell entrypoints (mvnw, docker entrypoints) break outright with CRLF
+#   3. one canonical byte sequence => no "whole file changed" diffs when a Windows
+#      contributor touches a file a Linux contributor wrote
+# Windows-only exceptions are declared explicitly below.
+
+* text=auto eol=lf
+
+# Windows batch scripts are parsed by cmd.exe, which expects CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# POSIX launch scripts must stay LF or they fail with "bad interpreter: /bin/sh^M".
+mvnw     text eol=lf
+*.sh     text eol=lf
+
+# Explicitly binary: never normalise, never attempt a text diff.
+*.jar   binary
+*.p12   binary
+*.jks   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.zip   binary
+
+# Build output is generated - keep it out of language statistics.
+target/** linguist-vendored

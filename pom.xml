@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Inheritance: we inherit curated dependency versions AND plugin versions from
+    the Spring Boot parent. This is the single biggest decision in this file.
+    <relativePath/> (empty) = "do not look for ../pom.xml on disk, resolve from the repo".
+  -->
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.5</version>
+    <relativePath/>
+  </parent>
+
+  <!-- Coordinates (GAV): the unique address of this project. -->
+  <groupId>com.kodegravity.exr</groupId>
+  <artifactId>exr-parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+
+  <!--
+    packaging=pom => this module contains no source code and produces no jar.
+    It is a PARENT (children inherit from it) and an AGGREGATOR (the reactor
+    builds every <module> below it, in dependency order).
+  -->
+  <packaging>pom</packaging>
+
+  <name>EXR :: Parent</name>
+  <description>Event eXploreR - release-date and live-event tracking platform</description>
+
+  <properties>
+    <!-- Java 21 (LTS). The Spring Boot parent uses this to set the compiler release. -->
+    <java.version>21</java.version>
+    <!-- UTF-8 everywhere: source, resources and reports. Never rely on the OS default. -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
+
+  <modules>
+    <!--
+      Deliberately empty for now. Modules are registered here as they are created:
+        <module>libs/exr-common</module>
+        <module>services/api-gateway</module>
+        ...
+      Never declare a module directory that does not exist yet - Maven fails the
+      whole build with "Child module ... does not exist".
+    -->
+  </modules>
+
+</project>

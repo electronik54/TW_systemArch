@@ -1,0 +1,98 @@
+# =====================================================================
+# EXR monorepo .gitignore
+# Create/update this file BEFORE any file that can hold a secret.
+# =====================================================================
+
+# ---------- Secrets & local config (NEVER commit) ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+
+# ---------- IDE / editors ----------
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+.settings/
+.project
+.classpath
+.factorypath
+
+# ---------- Java / Maven ----------
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+*.war
+*.ear
+hs_err_pid*
+replay_pid*
+dependency-reduced-pom.xml
+.mvn/wrapper/maven-wrapper.properties.bak
+
+# ---------- Logs, dumps, temp ----------
+*.log
+logs/
+*.tmp
+*.bak
+*.orig
+*.rej
+*.pid
+*.hprof
+
+# ---------- Node / React (ui/web) ----------
+node_modules/
+dist/
+.vite/
+coverage/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---------- Terraform ----------
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# ---------- Local infra volumes (Docker Compose / LocalStack) ----------
+infra/docker/**/data/
+infra/localstack/**/volume/
+
+# ---------- Build & test reports ----------
+**/target/surefire-reports/
+**/target/failsafe-reports/
+site/
+
+# ---------- OS junk ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ---------- Project resources ----------
+# DO NOT add a bare "resources/" pattern here.
+# A pattern with no leading slash matches a directory of that name at ANY depth,
+# which would silently exclude from version control:
+#   - src/main/resources   (application.yml, Flyway migrations, GraphQL schema)
+#   - src/test/resources   (test config, WireMock stubs)
+#   - resources/docs       (the project plan and spec)
+# A fresh clone would then not build, not run, and lose all the design docs.
+# Verified with: git check-ignore -v src/main/resources/application.yml
+# Ignore specific sub-folders instead, e.g.  resources/local-scratch/
