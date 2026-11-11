@@ -612,7 +612,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 **DAY 16 — Docker, local stack, observability (Datadog)**
 - [ ] 16.1 Dockerfiles: multi-stage build, layered jars, non-root user, JVM container flags (`MaxRAMPercentage`)
 - [ ] 16.2 Docker Compose dev stack + LocalStack; one-command local environment
-- [ ] 16.3 Datadog agent: APM traces (gateway → service → DB → Kafka), log correlation, unified service tagging
+- [ ] 16.3 Datadog agent: APM traces (gateway → service → DB → Kafka), log correlation, unified service tagging — **decide `correlationId` vs `traceId`**: unify them (`correlationId` = `traceId` when one exists, else generate) or log both. Remember traces are **sampled**, correlation ids are not, and non-HTTP callers (batch, webhooks, browsers) have no trace to offer
 - [ ] 16.4 Custom metrics + RED/USE dashboards, cache hit ratio, CB state, queue depth, consumer lag
 - [ ] 16.5 SLI/SLO/error budget, monitors + alert routing, on-call basics, runbooks
 - [ ] 16.6 **Liveness vs readiness**: what belongs in each probe (readiness checks dependencies, liveness must not), startup probes, and graceful shutdown draining in-flight requests *(H7)*
