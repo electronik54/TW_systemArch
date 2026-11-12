@@ -2,24 +2,22 @@
 
 > **Product:** EXR (Event eXploreR) — release-date & live-event tracking with notifications.
 > **User goal:** learn production-grade system design/architecture hands-on (Java 21 + microservices) using this project as the vehicle, and prepare for a system-design interview.
-> **Last updated:** Day 2 (rev 18: **rule 16 — every step now names the technology it teaches** · read replicas promoted, DR + secrets days added · `catalog-service` module and `V1__catalog_init.sql` written, **not yet executed**)  
+> **Last updated:** Day 2 in progress (rev 20: **rule 18 — the user runs and watches** · Flyway verified end-to-end through Spring Boot · JPA entities next)
 > **Companion docs:** `resources/docs/projectDetails.md` (feature spec) · `resources/docs/decisions.md` (ADR log, created Phase 1)
 
 ---
 
-## 0. RESUME HERE (paused after Day 2.3 — the V1 migration is written but NOT yet executed)
+## 0. RESUME HERE (Day 2.3 complete — Flyway verified; next is JPA entity mapping)
 
 **Status.** Day 1 (Phase 0) is complete. Day 2 is in progress:
 
-- `services/catalog-service` module exists — **pom only, no Java source** — and builds green in the reactor.
-- `V1__catalog_init.sql` — 4 tables (`sources`, `events`, `subscriptions`, `event_reports`) and 19 indexes — is **written and VERIFIED** against PostgreSQL 16. The `subscriptions_active_uk` partial index was proven to reject duplicates and allow a resubscribe. **Flyway itself has not run yet** (no `flyway_schema_history`), which happens when the Spring app first starts in 2.4.
-- `libs/exr-common` is complete: correlation-id filter + RFC 7807 error model + auto-configuration, **11 tests green**.
+- `services/catalog-service` exists with **Java source now**: `CatalogServiceApplication`, `application.yml` (credentials via `${EXR_DB_*}` env vars), and `FlywayMigrationTest`. **13 tests green** across the reactor (11 in `exr-common`, 2 in `catalog-service`).
+- `V1__catalog_init.sql` — 4 tables, 19 indexes — is **written, executed and verified** against PostgreSQL 16.
+- **Flyway itself is now verified** through Spring Boot: `flyway_schema_history` was created, V1 recorded with checksum `189898812`, and a second run logged *"Schema public is up to date. No migration necessary."* (idempotency proven). **V1 is now frozen — never edit it.**
+- `libs/exr-common` is complete: correlation-id filter + RFC 7807 error model + auto-configuration.
 - CI is green on `master`; repo is `https://github.com/electronik54/TW_systemArch` (default branch `master`).
 
 **Doc map:** start at `index.md` → `plan.md` (this file) → `projectDetails.md`. `need.txt` is the learning coverage map; `catalog/schema.md` is the catalog data model in full.
-
-**Docs live in `resources/docs/`** — start at `index.md`, then `plan.md` (this file) and
-`projectDetails.md`; `need.txt` holds the learning coverage map.
 
 > **KNOWN ISSUE — FIXED (rev 12).** The `.gitignore` previously contained a bare `resources/` pattern. A pattern with no leading slash matches a directory named `resources` **at any depth**, so it silently ignored:
 > - `resources/docs/**` — these planning docs,
@@ -53,11 +51,12 @@
 
 **Also still open:** the five questions in section 12 (git remote, AWS account + budget, TMDB/IGDB keys, Datadog availability, realistic session length).
 
-**NEXT ACTION — Day 2.4, JPA/Hibernate mapping.** Docker is running with container `exr-pg` (postgres:16, database `catalog`, port 55432). Steps already done: migration executed and the partial index proven.
+**NEXT ACTION — Day 2.4, JPA/Hibernate entity mapping.** Docker engine is running with container `exr-pg` (postgres:16, database `catalog`, port 55432). Already done: migration executed, partial index proven, Flyway verified through Spring Boot.
 
-1. Add a minimal Spring Boot application class + `application.yml` pointing at `localhost:55432/catalog`, so **Flyway runs through Spring Boot for the first time** — this creates `flyway_schema_history`, stores the V1 checksum, and freezes the file.
-2. Then map the entities: `Source`, `Event`, `Subscription`, `EventReport` — `@Version` optimistic locking, `@Enumerated` vs `varchar`+CHECK, `@ElementCollection` vs array columns, `@ManyToOne` self-reference for the hierarchy, and `@EntityGraph` to avoid N+1.
-3. Then continue: **2.5** Testcontainers repository test, **2.6** full-text search (`tsvector` + GIN — a perfect `V2` migration exercise), **2.7** `@Transactional` depth, **2.8** hierarchy, **2.9** lifecycle + reports.
+1. Map the entities: `Source`, `Event`, `Subscription`, `EventReport` — `@Version` optimistic locking, `@Enumerated` vs `varchar`+CHECK, array/text[] columns via `@JdbcTypeCode`, `@ManyToOne` self-reference for the hierarchy, `@EntityGraph` to avoid N+1.
+2. Then continue: **2.5** Testcontainers repository test, **2.6** full-text search (`tsvector` + GIN — a perfect `V2` migration exercise), **2.7** `@Transactional` depth, **2.8** hierarchy, **2.9** lifecycle + reports.
+
+**Apply rule 18 from now on:** when a step's value is watching output, hand the user the command and let them run it, then interpret the 2–3 lines that matter.
 
 **Container hygiene:** `docker stop exr-pg` when done; `docker rm exr-pg` to delete it. It holds no data worth keeping.
 
@@ -89,8 +88,13 @@
     That is what a system-design interview actually grades.
 13. **Topic sessions must be < ~45 min of reading.** If a topic needs more, split it and say so.
 14. **LANGUAGE STYLE (user request, rev 16) — this is the default for every explanation.** Explain in **plain, everyday language first**, the way you would explain it to a smart colleague from a different team. Use analogies, short sentences and concrete examples. **After** the plain explanation, name the technical term in brackets — e.g. *"the library's quick-find list (a database **index**)"* — because the user needs the vocabulary for interviews. **Never lead with jargon.** Tradeoff tables are welcome; dense prose is not. If an explanation lands flat, re-tell it simpler rather than adding detail.
+   - **If the user says they did not understand: DO NOT explain in more depth — REDUCE.** Give the **3–4 facts needed right now**, name the day where the rest is covered (so nothing feels lost), and switch to a **hands-on demo** instead of more theory. Long mechanical deep-dives (e.g. Flyway internals: checksums, advisory locks, baseline, transaction boundaries) must be **offered on request only**, never volunteered.
 15. **PER-SERVICE SCHEMA DOCS (user request, rev 16).** Every service that has a data model gets `resources/docs/<service-name>/schema.md`, written in the same plain language as rule 14, listing **every column, its type and its constraints**, plus the reason each choice was made. When the schema is already documented there, **do not re-explain it in chat** — point at the file. Update that file whenever the schema changes; it is the durable record, chat is not.
 16. **ANNOUNCE THE TECHNOLOGY AT THE START OF EVERY STEP (user request, rev 18).** The user's goal is to learn the **technologies**, not just to accumulate files. So every step must begin with a short header naming (a) **which technology this step teaches**, (b) **where it sits in the curriculum** (e.g. "Day 2.3"), and (c) **what problem it solves** — before any file is created. When a step touches several technologies (a Maven module + a Flyway migration + SQL DDL), name all of them and say explicitly which one is **the actual lesson** and which are supporting plumbing. Never leave the user guessing why a file appeared.
+17. **TELL THE USER WHEN A TOPIC BELONGS TO A LATER DAY (user request, rev 19).** When asked about a technology the curriculum schedules for a future day, **say so explicitly** — e.g. *"that's Day 18.6 — we'll do it properly then"* — and give only a short, connecting answer now. Do not pre-teach a later topic in depth; it lands far better when the earlier pieces exist to attach to. Always name the day, so the user knows nothing has been lost.
+18. **LET THE USER RUN IT AND WATCH IT HAPPEN (user request, rev 20).** Whenever the point of a step is *seeing something happen* — starting the application, running a test, watching a migration apply, watching a constraint reject a row — give the user the **exact command to run in their own terminal**, then **wait** for them to paste the output, and only then explain what they are looking at. Do **not** run it yourself and paste a wall of log; the learning is in watching their own screen. When interpreting, highlight **only the 2–3 lines that matter** and ignore the rest.
+    - The agent still owes verification (rule 6) — but verification happens **through the user's run**, not instead of it. If they get an unexpected result, that output is the starting point for the fix.
+    - Linux/Windows note: give the command in a form that works in *their* shell, and say which shell it assumes.
 
 ---
 
@@ -774,7 +778,9 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | rev 15 | Rewrote `need.txt` as a **COVERED / NOT COVERED** map derived from the resume, with Q1–Q4 answered inside it; added **`index.md`** as the documentation entry point and repointed `README.md` and rule 1 at it; replaced the stale "zero code written" status block |
 | rev 16 | **Two new working rules:** 14 = explain in **plain language first**, jargon in brackets afterwards (this is now the default style); 15 = every service gets `resources/docs/<service>/schema.md` with every column, type and constraint, and the schema is **not** re-explained in chat. Added **D-013** (retention purges *details*, keeps the *skeleton*, re-hydrates on demand) and **D-014** (per-service schema docs). Created `resources/docs/catalog/schema.md` |
 | rev 17 | User asked whether read replicas, migrations, DR and secrets are covered — audit found two gaps. **Promoted read replicas from Tier 2 to a firm task (17.3)**, added **17.7 (DR strategy ladder + cross-region)** and **17.8 (secrets management)**. Also recorded D-015 (override layer accepted) and D-016 (database hosting per environment) |
-| rev 18 | Added **rule 16 — announce the technology at the start of every step** (the user could not tell what each file was teaching). Created `services/catalog-service` (module + `dependencyManagement` in the parent) and wrote **`V1__catalog_init.sql`** — 4 tables, 12 indexes. Renamed `subscriptions.unsubscribed_at` → `ended_at` + `end_reason` while writing the SQL, and synced `schema.md` |
+| rev 18 | Added **rule 16 — announce the technology at the start of every step** (the user could not tell what each file was teaching). Created `services/catalog-service` (module + `dependencyManagement` in the parent) and wrote **`V1__catalog_init.sql`** — 4 tables, 13 explicit indexes + 6 implicit = 19. Renamed `subscriptions.unsubscribed_at` → `ended_at` + `end_reason` while writing the SQL, and synced `schema.md` |
+| rev 19 | **Flyway executed and verified end-to-end.** (a) Raw SQL via `psql` against `postgres:16`: 4 tables, 19 indexes, and the partial index proven to reject a duplicate live subscription and allow a resubscribe. (b) Through **Spring Boot**: `flyway_schema_history` created, V1 recorded with checksum `189898812`, second run = *"up to date, no migration necessary"*. Added the rule 14 bullet *(if the user does not understand — REDUCE, do not deepen)* and **rule 17** *(name the day a future topic belongs to)*. Created `CatalogServiceApplication`, `application.yml`, `FlywayMigrationTest` |
+| rev 20 | **Rule 18 — the user runs it and watches it happen:** give the command, wait for their output, then interpret only the 2–3 lines that matter. Refreshed section 0, work status, curriculum state and environment table to match reality (Docker running, `catalog-service` has source, 13 tests) |
 
 ### 11.2 Work status
 | Area | Status |
@@ -787,11 +793,12 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | `README.md`, `.editorconfig`, `.gitattributes` | **DONE** |
 | git repository | **DONE** — `origin` = `https://github.com/electronik54/TW_systemArch.git`, **default branch is `master`** (not `main`), first commits pushed |
 | CI pipeline | **DONE** — `.github/workflows/ci.yml`, first run green on `master` (run 42940713385). `mvnw` is committed as `100755` |
-| `services/catalog-service` | **MODULE CREATED** — pom only (web + JPA + Flyway 10 + postgres + exr-common + Testcontainers); builds green in the reactor. No Java source yet |
+| `services/catalog-service` | **RUNS** — `CatalogServiceApplication`, `application.yml` (credentials via `${EXR_DB_*}` env vars, `ddl-auto: validate`), `FlywayMigrationTest`. 2 tests green |
+| Local Postgres | **RUNNING** — Docker container `exr-pg`, `postgres:16`, database `catalog`, host port `55432` |
 | `V1__catalog_init.sql` | **VERIFIED** — ran clean against PostgreSQL 16. 4 tables (`sources`, `events`, `subscriptions`, `event_reports`), 13 explicit indexes + 6 implicit = **19 total**. The `subscriptions_active_uk` partial index was proven to reject a duplicate live subscription and allow a resubscribe after `ended_at` |
 | Docs location | **MOVED** — `docs/` → `resources/docs/` (end of Day 0) |
 | Local infra (Docker Compose, LocalStack) | **NOT STARTED** |
-| Curriculum | **Day 1 complete** (1.1–1.4 ✅, exit test met) · **Day 2 in progress**: step 1 (nouns + ownership) presented, awaiting confirmation |
+| Curriculum | **Day 1 complete** (1.1–1.4 ✅) · **Day 2: 2.3 ✅** (migration + Flyway verified) · **next 2.4** JPA entity mapping |
 | Documentation set | **`index.md`** (entry point) · `plan.md` (manual) · `projectDetails.md` (spec) · `need.txt` (COVERED / NOT COVERED map) · **`catalog/schema.md`** (catalog schema, plain language, every column + constraint) |
 
 ### 11.3 Local environment (verified 2026-10-28)
@@ -803,7 +810,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | Java on PATH | **JDK 17** (`C:\Program Files\Microsoft\jdk-17.0.18.8-hotspot`) | machine-level PATH is evaluated before user PATH, so a bare `java -version` still reports 17 |
 | Maven | 3.9.15 | verified running on Java 21 once `JAVA_HOME` is set ✅ |
 | Git | 2.45.1 | ✅ |
-| Docker | 29.6.1 installed | ⚠️ **daemon not running** — start Docker Desktop before Day 2 (Postgres/Redis) |
+| Docker | 29.6.1, **engine running** | container `exr-pg` = `postgres:16`, database `catalog`, port `55432`; used for all Day 2 verification. Stop with `docker stop exr-pg` |
 | Node / npm | 24.13.0 / 10.5.2 | ✅ (needed Day 19) |
 | AWS CLI | 2.34.2 | ✅ |
 | Terraform | **not installed** | needed Day 17 only |

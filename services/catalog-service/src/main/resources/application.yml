@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: catalog-service
+
+  # ---------------------------------------------------------------------------
+  # Credentials come from ENVIRONMENT VARIABLES, with a local default in the
+  # ${VAR:default} form. Nothing sensitive is committed: the default only works
+  # against the throwaway container on this machine.
+  # ---------------------------------------------------------------------------
+  datasource:
+    url: ${EXR_DB_URL:jdbc:postgresql://localhost:55432/catalog}
+    username: ${EXR_DB_USER:postgres}
+    password: ${EXR_DB_PASSWORD:postgres}
+    hikari:
+      # deliberately small: many small pools beat one huge pool, and a database
+      # allows far fewer connections than people assume
+      maximum-pool-size: 5
+
+  jpa:
+    # FLYWAY owns the schema. Hibernate is only allowed to CHECK that the code
+    # matches it - never to create or alter tables. Letting both manage the
+    # schema produces one that neither of them fully understands.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+
+  # Flyway is on by default in Spring Boot; written out here so the wiring is visible.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+server:
+  port: 8081
