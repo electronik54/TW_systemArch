@@ -2,7 +2,7 @@
 
 > **Product:** EXR (Event eXploreR) — release-date & live-event tracking with notifications.
 > **User goal:** learn production-grade system design/architecture hands-on (Java 21 + microservices) using this project as the vehicle, and prepare for a system-design interview.
-> **Last updated:** Day 2 in progress (rev 20: **rule 18 — the user runs and watches** · Flyway verified end-to-end through Spring Boot · JPA entities next)
+> **Last updated:** Day 2 in progress (rev 21: **rule 19 — the agent checks understanding with questions** · `Source` is the first mapped entity · next `Event` with relations, `@Version`, arrays)
 > **Companion docs:** `resources/docs/projectDetails.md` (feature spec) · `resources/docs/decisions.md` (ADR log, created Phase 1)
 
 ---
@@ -11,9 +11,10 @@
 
 **Status.** Day 1 (Phase 0) is complete. Day 2 is in progress:
 
-- `services/catalog-service` exists with **Java source now**: `CatalogServiceApplication`, `application.yml` (credentials via `${EXR_DB_*}` env vars), and `FlywayMigrationTest`. **13 tests green** across the reactor (11 in `exr-common`, 2 in `catalog-service`).
+- `services/catalog-service` exists with **Java source now**: `CatalogServiceApplication`, `application.yml` (credentials via `${EXR_DB_*}` env vars), and `FlywayMigrationTest`. **15 tests green** across the reactor (11 in `exr-common`, 4 in `catalog-service`).
 - `V1__catalog_init.sql` — 4 tables, 19 indexes — is **written, executed and verified** against PostgreSQL 16.
 - **Flyway itself is now verified** through Spring Boot: `flyway_schema_history` was created, V1 recorded with checksum `189898812`, and a second run logged *"Schema public is up to date. No migration necessary."* (idempotency proven). **V1 is now frozen — never edit it.**
+- **The service boots (2.4a).** Started from IntelliJ in **3.531 s** against PostgreSQL **16.15**: Hikari pool → `Successfully validated 1 migration` (stored checksum matched) → *"up to date, no migration necessary"* → Hibernate 6.5.3 `EntityManagerFactory` → Tomcat on **8081**. The startup order is confirmed in a real log, not just in a comment.
 - `libs/exr-common` is complete: correlation-id filter + RFC 7807 error model + auto-configuration.
 - CI is green on `master`; repo is `https://github.com/electronik54/TW_systemArch` (default branch `master`).
 
@@ -95,6 +96,14 @@
 18. **LET THE USER RUN IT AND WATCH IT HAPPEN (user request, rev 20).** Whenever the point of a step is *seeing something happen* — starting the application, running a test, watching a migration apply, watching a constraint reject a row — give the user the **exact command to run in their own terminal**, then **wait** for them to paste the output, and only then explain what they are looking at. Do **not** run it yourself and paste a wall of log; the learning is in watching their own screen. When interpreting, highlight **only the 2–3 lines that matter** and ignore the rest.
     - The agent still owes verification (rule 6) — but verification happens **through the user's run**, not instead of it. If they get an unexpected result, that output is the starting point for the fix.
     - Linux/Windows note: give the command in a form that works in *their* shell, and say which shell it assumes.
+19. **CHECK MY UNDERSTANDING AT THE END OF EVERY STEP — ASK, DO NOT TELL IT BACK (user request, rev 21).** Every teaching turn ends with **2–3 short questions** that test whether the *idea* landed, and then the agent **stops**.
+    - **Never answer your own questions in the same turn.** The user answers; the next turn reacts to that answer.
+    - **Mix the three kinds:** one **recall** (*"what does `@Enumerated(STRING)` actually write into the column?"*), one **consequence** (*"what breaks if we delete it?"*), one **judgement** (*"two tables here need different choices — which, and why?"*).
+    - **Test the idea, not the syntax.** *"Which annotation goes where"* is a memory test. *"Why is there no `version` column on `sources`?"* is an understanding test. Prefer the second.
+    - **Never phrase one so that "yes" is the answer**, and never ask something that the same turn already stated word for word.
+    - **A wrong answer becomes the next step.** Fix the misunderstanding *before* adding new material, then re-ask the same idea one step later to confirm it stuck. Do not move on politely.
+    - **If all answers are right:** say so in one line, then advance exactly one step.
+    - **If the user is unsure:** apply rule 14 — reduce to the 3–4 facts that matter and switch to a hands-on demo. Do not elaborate.
 
 ---
 
@@ -504,7 +513,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 - [ ] 2.1 Bounded contexts and ownership: which service owns which table; why no cross-service joins
 - [ ] 2.2 ERD: events, sources, subscriptions, users, roles, audit, outbox, notification log (+ indexes and why)
 - [x] 2.3 Flyway migrations (`V1__catalog_init.sql`), naming conventions, forward-only migrations, zero-downtime rules — **DONE**: migration executed successfully against PostgreSQL 16 (Docker `postgres:16`, database `catalog`). Result: **4 tables, 13 explicit + 6 implicit = 19 indexes**. The partial unique index was proven live — a duplicate live subscription raised `duplicate key value violates unique constraint "subscriptions_active_uk"`, and resubscribing after `ended_at` was set succeeded. **Note:** this proved the *SQL*, not *Flyway itself* — the history table/checksum/ordering path is exercised when the Spring app first starts (2.4)
-- [ ] 2.4 JPA mapping with Hibernate 6: records vs entities, `@Version`, `@Embedded`, avoid N+1 (`@EntityGraph`)
+- [~] 2.4 JPA mapping with Hibernate 6: records vs entities, `@Version`, `@Embedded`, avoid N+1 (`@EntityGraph`) — **2.4a ✅** the app boots and the startup order is confirmed in the log · **2.4b ✅** `Source` + `ExpiryPolicy` mapped, proven by `ddl-auto: validate` · **2.4c in progress** `Event` maps **7 of 25 columns** — identity, `source_id` as `@ManyToOne(LAZY)` returning a `Source` object, and `release_date` + `release_precision` as `LocalDate` + String — proven by `EventMappingTest`. Still to map: `@Version`, the `text[]` arrays, `@PrePersist` timestamps, the purged-detail fields and the overrides
 - [ ] 2.5 Testcontainers integration test for repositories
 - [ ] 2.6 Full-text search in Postgres: `tsvector` + GIN index vs `LIKE`/trigram vs OpenSearch — pick and justify *(H3)*
 - [ ] 2.7 **`@Transactional` in depth** *(user request)*: where the boundary belongs (service layer, not controller), propagation (`REQUIRED` vs `REQUIRES_NEW`), rollback rules (runtime vs checked exceptions), isolation levels, and what a transaction does **not** protect you from (lost updates)
@@ -781,6 +790,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | rev 18 | Added **rule 16 — announce the technology at the start of every step** (the user could not tell what each file was teaching). Created `services/catalog-service` (module + `dependencyManagement` in the parent) and wrote **`V1__catalog_init.sql`** — 4 tables, 13 explicit indexes + 6 implicit = 19. Renamed `subscriptions.unsubscribed_at` → `ended_at` + `end_reason` while writing the SQL, and synced `schema.md` |
 | rev 19 | **Flyway executed and verified end-to-end.** (a) Raw SQL via `psql` against `postgres:16`: 4 tables, 19 indexes, and the partial index proven to reject a duplicate live subscription and allow a resubscribe. (b) Through **Spring Boot**: `flyway_schema_history` created, V1 recorded with checksum `189898812`, second run = *"up to date, no migration necessary"*. Added the rule 14 bullet *(if the user does not understand — REDUCE, do not deepen)* and **rule 17** *(name the day a future topic belongs to)*. Created `CatalogServiceApplication`, `application.yml`, `FlywayMigrationTest` |
 | rev 20 | **Rule 18 — the user runs it and watches it happen:** give the command, wait for their output, then interpret only the 2–3 lines that matter. Refreshed section 0, work status, curriculum state and environment table to match reality (Docker running, `catalog-service` has source, 13 tests) |
+| rev 21 | **Rule 19 — check understanding with 2–3 questions at the end of every step, then stop** (never answer them in the same turn; a wrong answer becomes the next step). Day **2.4b**: `ExpiryPolicy` enum + `Source` entity mapped against the real `sources` table, including the decision that the **application** stamps `created_at`/`updated_at` via `@PrePersist`/`@PreUpdate` because V1 creates **no trigger** |
 
 ### 11.2 Work status
 | Area | Status |
@@ -792,13 +802,13 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | Build files (`pom.xml`, Maven wrapper) | **DONE** — root aggregator `pom.xml` (Java 21, `packaging=pom`) + Maven wrapper pinning **Maven 3.9.15**; verified with `mvnw.cmd -v` |
 | `README.md`, `.editorconfig`, `.gitattributes` | **DONE** |
 | git repository | **DONE** — `origin` = `https://github.com/electronik54/TW_systemArch.git`, **default branch is `master`** (not `main`), first commits pushed |
-| CI pipeline | **DONE** — `.github/workflows/ci.yml`, first run green on `master` (run 42940713385). `mvnw` is committed as `100755` |
-| `services/catalog-service` | **RUNS** — `CatalogServiceApplication`, `application.yml` (credentials via `${EXR_DB_*}` env vars, `ddl-auto: validate`), `FlywayMigrationTest`. 2 tests green |
+| CI pipeline | **DONE** — `.github/workflows/ci.yml`, first run green on `master` (run 42940713385). `mvnw` is committed as `100755`. **Updated in rev 21:** the job now starts a `postgres:16` **service container** (health-checked) and overrides `EXR_DB_URL` / `EXR_DB_USER` / `EXR_DB_PASSWORD`, because the three `@SpringBootTest` persistence tests need a real database — without it `mvnw verify` would fail on `master`. Flyway's V1 both creates the tables and seeds `sources`, so no extra setup step is needed |
+| `services/catalog-service` | **RUNS** — `CatalogServiceApplication`, `application.yml` (credentials via `${EXR_DB_*}` env vars, `ddl-auto: validate`), `FlywayMigrationTest`, `SourceMappingTest`, `EventMappingTest`. 4 tests green |
 | Local Postgres | **RUNNING** — Docker container `exr-pg`, `postgres:16`, database `catalog`, host port `55432` |
 | `V1__catalog_init.sql` | **VERIFIED** — ran clean against PostgreSQL 16. 4 tables (`sources`, `events`, `subscriptions`, `event_reports`), 13 explicit indexes + 6 implicit = **19 total**. The `subscriptions_active_uk` partial index was proven to reject a duplicate live subscription and allow a resubscribe after `ended_at` |
 | Docs location | **MOVED** — `docs/` → `resources/docs/` (end of Day 0) |
 | Local infra (Docker Compose, LocalStack) | **NOT STARTED** |
-| Curriculum | **Day 1 complete** (1.1–1.4 ✅) · **Day 2: 2.3 ✅** (migration + Flyway verified) · **next 2.4** JPA entity mapping |
+| Curriculum | **Day 1 complete** (1.1–1.4 ✅) · **Day 2: 2.3 ✅** (migration + Flyway verified) · **2.4a ✅** (app boots, order confirmed in the log) · **2.4b ✅** (`Source` + `ExpiryPolicy` mapped, `validate` green) · **2.4c started** (`Event` maps 7 of 25 columns, `@ManyToOne` proven by a test) |
 | Documentation set | **`index.md`** (entry point) · `plan.md` (manual) · `projectDetails.md` (spec) · `need.txt` (COVERED / NOT COVERED map) · **`catalog/schema.md`** (catalog schema, plain language, every column + constraint) |
 
 ### 11.3 Local environment (verified 2026-10-28)
