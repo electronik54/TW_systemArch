@@ -12,7 +12,7 @@
 **Status.** Day 1 (Phase 0) is complete. Day 2 is in progress:
 
 - `services/catalog-service` module exists — **pom only, no Java source** — and builds green in the reactor.
-- `V1__catalog_init.sql` — 4 tables (`sources`, `events`, `subscriptions`, `event_reports`) + 12 indexes — is **written but has never been executed**. Verification is blocked on **Docker Desktop not being started**.
+- `V1__catalog_init.sql` — 4 tables (`sources`, `events`, `subscriptions`, `event_reports`) and 19 indexes — is **written and VERIFIED** against PostgreSQL 16. The `subscriptions_active_uk` partial index was proven to reject duplicates and allow a resubscribe. **Flyway itself has not run yet** (no `flyway_schema_history`), which happens when the Spring app first starts in 2.4.
 - `libs/exr-common` is complete: correlation-id filter + RFC 7807 error model + auto-configuration, **11 tests green**.
 - CI is green on `master`; repo is `https://github.com/electronik54/TW_systemArch` (default branch `master`).
 
@@ -53,12 +53,13 @@
 
 **Also still open:** the five questions in section 12 (git remote, AWS account + budget, TMDB/IGDB keys, Datadog availability, realistic session length).
 
-**NEXT ACTION — verify the migration, then continue Day 2.** The user paused here for a few hours.
+**NEXT ACTION — Day 2.4, JPA/Hibernate mapping.** Docker is running with container `exr-pg` (postgres:16, database `catalog`, port 55432). Steps already done: migration executed and the partial index proven.
 
-1. **Start Docker Desktop.** It was not running when we paused, and it is the *only* blocker.
-2. Run `postgres:16` in a container, execute `V1__catalog_init.sql` against it, and confirm the tables (`\dt`) and indexes (`\di`) exist.
-3. Deliberately insert a duplicate **live** subscription to prove the partial unique index rejects it — the difference between "the rule is in the file" and "the rule is real".
-4. Then continue in order: **2.4** JPA/Hibernate mapping (`@Version`, avoid N+1, `@EntityGraph`), **2.5** Testcontainers repository test, **2.6** full-text search (`tsvector` + GIN — a perfect `V2` migration exercise), **2.7** `@Transactional` depth, **2.8** hierarchy, **2.9** lifecycle + reports.
+1. Add a minimal Spring Boot application class + `application.yml` pointing at `localhost:55432/catalog`, so **Flyway runs through Spring Boot for the first time** — this creates `flyway_schema_history`, stores the V1 checksum, and freezes the file.
+2. Then map the entities: `Source`, `Event`, `Subscription`, `EventReport` — `@Version` optimistic locking, `@Enumerated` vs `varchar`+CHECK, `@ElementCollection` vs array columns, `@ManyToOne` self-reference for the hierarchy, and `@EntityGraph` to avoid N+1.
+3. Then continue: **2.5** Testcontainers repository test, **2.6** full-text search (`tsvector` + GIN — a perfect `V2` migration exercise), **2.7** `@Transactional` depth, **2.8** hierarchy, **2.9** lifecycle + reports.
+
+**Container hygiene:** `docker stop exr-pg` when done; `docker rm exr-pg` to delete it. It holds no data worth keeping.
 
 **Rules the agent must apply on resume:** rule 16 — **announce the technology at the start of every step**; rule 14 — plain language first, jargon in brackets; rule 10 — **the user runs git, only propose commands**.
 
@@ -498,7 +499,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 **DAY 2 — Domain modelling + PostgreSQL + Hibernate**
 - [ ] 2.1 Bounded contexts and ownership: which service owns which table; why no cross-service joins
 - [ ] 2.2 ERD: events, sources, subscriptions, users, roles, audit, outbox, notification log (+ indexes and why)
-- [~] 2.3 Flyway migrations (`V1__catalog_init.sql`), naming conventions, forward-only migrations, zero-downtime rules — **written** at `services/catalog-service/src/main/resources/db/migration/V1__catalog_init.sql` (4 tables + 12 indexes); **NOT YET EXECUTED** — needs Docker running to verify against a real Postgres 16
+- [x] 2.3 Flyway migrations (`V1__catalog_init.sql`), naming conventions, forward-only migrations, zero-downtime rules — **DONE**: migration executed successfully against PostgreSQL 16 (Docker `postgres:16`, database `catalog`). Result: **4 tables, 13 explicit + 6 implicit = 19 indexes**. The partial unique index was proven live — a duplicate live subscription raised `duplicate key value violates unique constraint "subscriptions_active_uk"`, and resubscribing after `ended_at` was set succeeded. **Note:** this proved the *SQL*, not *Flyway itself* — the history table/checksum/ordering path is exercised when the Spring app first starts (2.4)
 - [ ] 2.4 JPA mapping with Hibernate 6: records vs entities, `@Version`, `@Embedded`, avoid N+1 (`@EntityGraph`)
 - [ ] 2.5 Testcontainers integration test for repositories
 - [ ] 2.6 Full-text search in Postgres: `tsvector` + GIN index vs `LIKE`/trigram vs OpenSearch — pick and justify *(H3)*
@@ -787,7 +788,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress · `[-]` deliberate
 | git repository | **DONE** — `origin` = `https://github.com/electronik54/TW_systemArch.git`, **default branch is `master`** (not `main`), first commits pushed |
 | CI pipeline | **DONE** — `.github/workflows/ci.yml`, first run green on `master` (run 42940713385). `mvnw` is committed as `100755` |
 | `services/catalog-service` | **MODULE CREATED** — pom only (web + JPA + Flyway 10 + postgres + exr-common + Testcontainers); builds green in the reactor. No Java source yet |
-| `V1__catalog_init.sql` | **WRITTEN, NOT VERIFIED** — 4 tables (`sources`, `events`, `subscriptions`, `event_reports`) + 12 indexes. Execution blocked on Docker Desktop being started |
+| `V1__catalog_init.sql` | **VERIFIED** — ran clean against PostgreSQL 16. 4 tables (`sources`, `events`, `subscriptions`, `event_reports`), 13 explicit indexes + 6 implicit = **19 total**. The `subscriptions_active_uk` partial index was proven to reject a duplicate live subscription and allow a resubscribe after `ended_at` |
 | Docs location | **MOVED** — `docs/` → `resources/docs/` (end of Day 0) |
 | Local infra (Docker Compose, LocalStack) | **NOT STARTED** |
 | Curriculum | **Day 1 complete** (1.1–1.4 ✅, exit test met) · **Day 2 in progress**: step 1 (nouns + ownership) presented, awaiting confirmation |
