@@ -57,7 +57,7 @@ resources/docs/          index.md · plan.md · projectDetails.md · need.txt ·
 
 ## 6. Rules an agent must not break
 
-The full list is `plan.md` §1. The four that cause real damage if forgotten:
+The full list is `plan.md` §1. The five that cause real damage if forgotten:
 
 1. **One step at a time.** Explain before writing, explain after, then stop and wait. One
    concept or one file per turn — never a five-file dump.
@@ -66,6 +66,11 @@ The full list is `plan.md` §1. The four that cause real damage if forgotten:
    command and say *why*.
 4. **Never put domain code in `libs/exr-common`.** Request ids and error shapes only. If it
    ever imports a JPA entity, the service boundaries have collapsed.
+5. **Plain words first, the term in brackets** (`plan.md` rules 14, 20, 22). The first attempt
+   is written in the short form — numbered steps, one idea per sentence, no tables, a term
+   bracketed at first use so it can be recognised in an interview. Never repair a sentence
+   inside the reply (*"ignore the wording"*, *"what I meant was"*): delete it and send the
+   clean one, because a reply that argues with itself is what makes the user ask for a re-tell.
 
 Also: `plan.md` §1.1 records that threading, third-party API access and circuit breakers are
 **three separate topics** — do not re-bundle them.
@@ -76,5 +81,5 @@ Also: `plan.md` §1.1 records that threading, third-party API access and circuit
 2. Read `plan.md` §11 (progress) — what is done, what is not.
 3. Run the topic gate, then continue from the next unticked item in §9.
 
-> **Last updated:** rev 28. Keep this file's status table in sync whenever `plan.md` advances a
+> **Last updated:** rev 29. Keep this file's status table in sync whenever `plan.md` advances a
 > phase — and read `git-workflow.md` before committing anything.
