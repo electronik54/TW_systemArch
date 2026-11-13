@@ -23,7 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * against a database that Flyway has already migrated.
  */
 @SpringBootTest
-class FlywayMigrationTest {
+class FlywayMigrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private DataSource dataSource;

@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.jpa.properties.hibernate.format_sql=true"
 })
 @Transactional
-class SourceMappingTest {
+class SourceMappingTest extends AbstractIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;

@@ -6,15 +6,35 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
- * One row of {@code events}. Deliberately incomplete for now: only the columns
- * that carry a NEW mapping idea are here. Unmapped columns are fine — Hibernate
- * validates what is mapped and ignores the rest.
+ * One row of {@code events}.
+ *
+ * <p>The table splits in two and this class follows the split, because the
+ * business rules differ. The <b>skeleton</b> (id, source, title, dates, status)
+ * survives expiry — it is what keeps autocomplete, history and subscriptions
+ * alive. The <b>details</b> (synopsis, poster, genres, ...) are purged when the
+ * source's licence clock runs out and re-fetched on demand. The <b>editorial
+ * overrides</b> belong to neither: an admin authored them, so nothing purges
+ * them.
+ *
+ * <p>Every field here is validated against {@code V1__catalog_init.sql} at
+ * startup by {@code ddl-auto: validate}. Where the mapped Java type implies a
+ * different SQL type than the DDL chose, {@code columnDefinition} states the
+ * real one — otherwise the application refuses to boot, which is the point of
+ * validation.
  */
 @Entity
 @Table(name = "events")
@@ -41,8 +61,9 @@ public class Event {
      * <p>{@code fetch = LAZY} overrides JPA's default, which for {@code @ManyToOne}
      * is <b>EAGER</b> — the single biggest source of accidental extra queries.
      * A lazy field returns a stand-in proxy that loads on first use, so touching
-     * it outside a transaction throws. We'll fetch it in ONE query with
-     * {@code @EntityGraph} later in this day.
+     * it outside a transaction throws. {@code EventRepository.findWithSourceByCategory}
+     * carries {@code @EntityGraph(attributePaths = "source")} and loads the
+     * supplier in the SAME statement — measured at 4 statements down to 1.
      */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "source_id", nullable = false, updatable = false)
@@ -53,10 +74,13 @@ public class Event {
     private String externalId;
 
     /**
-     * NOT NULL in Postgres and with NO database default, so the INSERT must carry
-     * it. Hibernate writes only the columns that are mapped here — everything
-     * unmapped is left to the database, which fills in a DEFAULT if one exists
-     * and otherwise refuses the row. (Becomes an enum later; a String for now.)
+     * GAME, MOVIE, TV_SERIES, ANIME or LOCAL_EVENT — a CHECK constraint in the
+     * DDL, deliberately not a Postgres enum type, so adding a category later is
+     * one line in a new migration rather than an {@code ALTER TYPE}.
+     *
+     * <p>Still a {@code String} here on purpose: the enum (with its supplier
+     * mapping) arrives with the ingestion code, and an unknown supplier value
+     * must not be able to fail the boot.
      */
     @Column(name = "category", nullable = false, length = 16)
     private String category;
@@ -96,6 +120,216 @@ public class Event {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_event_id")
     private Event parent;
+
+    // ------------------------------------------------------------------
+    // the SKELETON — survives expiry
+    // ------------------------------------------------------------------
+
+    /**
+     * WHAT WE KNOW about the release: ANNOUNCED, CONFIRMED, DELAYED, RELEASED,
+     * CANCELLED.
+     *
+     * <p>Initialised rather than left null, and that matters more than it looks:
+     * {@code DEFAULT 'ANNOUNCED'} only fires when the column is <em>absent</em>
+     * from the INSERT, and Hibernate sends every mapped column. A null would be
+     * sent as an explicit NULL and Postgres would reject the row. The database
+     * default protects someone typing SQL by hand; the field initialiser
+     * protects the application.
+     */
+    @Column(name = "status", nullable = false, length = 16)
+    private String status = "ANNOUNCED";
+
+    /**
+     * Whether the DETAILS are present: FRESH, STALE, GONE. A different question
+     * from {@link #status} — an event can be RELEASED with its details GONE, or
+     * ANNOUNCED and FRESH.
+     */
+    @Column(name = "availability", nullable = false, length = 16)
+    private String availability = "FRESH";
+
+    /**
+     * The last moment this is worth refreshing or subscribing to. Null means "no
+     * known end" — a concert with no announced finish, say. The partial index
+     * {@code events_refresh_idx} is built on this column with
+     * {@code WHERE active_until IS NOT NULL}.
+     */
+    @Column(name = "active_until")
+    private Instant activeUntil;
+
+    /**
+     * When the details were purged. Kept afterwards on purpose: the skeleton
+     * survives, this column is how the purge job knows it is finished and the
+     * fetcher knows a re-fetch is due. A moment in time, so {@link Instant} —
+     * {@code timestamptz} in the DDL, always.
+     */
+    @Column(name = "details_expired_at")
+    private Instant detailsExpiredAt;
+
+    // ------------------------------------------------------------------
+    // the DETAILS — purged when the source's licence clock runs out
+    // ------------------------------------------------------------------
+
+    /**
+     * {@code text}: unlimited length. Hibernate's default for a String is
+     * {@code varchar(255)} and {@code validate} compares the two literally, so
+     * without this the boot fails with "found [text], expecting [varchar(255)]".
+     */
+    @Column(name = "synopsis", columnDefinition = "text")
+    private String synopsis;
+
+    @Column(name = "poster_url", columnDefinition = "text")
+    private String posterUrl;
+
+    @Column(name = "external_url", columnDefinition = "text")
+    private String externalUrl;
+
+    /**
+     * A Postgres ARRAY in ONE column: {@code text[]}, not a join table.
+     *
+     * <p>JPA has no array concept (the standard must be portable, arrays are
+     * not), so this is a Hibernate extension: {@code @JdbcTypeCode} says "bind
+     * this as a JDBC array of strings". The payoff is the GIN index V1 created —
+     * {@code genres @> ARRAY['Metroidvania']} is a single index lookup, while a
+     * join table would cost a second table, a second index and a JOIN on every
+     * read of the list screen.
+     *
+     * <p>Never null: the DDL says {@code NOT NULL DEFAULT '{}'}, so the field
+     * starts empty and the setter copies what it is handed — an aliased array is
+     * a mutation from a distance.
+     */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "genres", nullable = false, columnDefinition = "text[]")
+    private String[] genres = new String[0];
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "platforms", nullable = false, columnDefinition = "text[]")
+    private String[] platforms = new String[0];
+
+    @Column(name = "network", length = 120)
+    private String network;
+
+    @Column(name = "venue", length = 200)
+    private String venue;
+
+    @Column(name = "city", length = 120)
+    private String city;
+
+    /**
+     * ISO-3166 alpha-2: always exactly two characters, hence {@code char(2)} in
+     * the DDL. {@code CHAR} is blank-padded to a fixed width, {@code VARCHAR} is
+     * not — and {@code length = 2} alone would make Hibernate expect
+     * {@code varchar(2)} and refuse to start.
+     *
+     * <p>It takes BOTH annotations to satisfy the validator, which is worth
+     * remembering: {@code columnDefinition} only fixes the type <em>name</em>
+     * ("char(2)"), while a Java {@code String} is still bound as
+     * {@code Types#VARCHAR}. Postgres reports the real column as
+     * {@code bpchar (Types#CHAR)}, so without {@code @JdbcTypeCode} the boot
+     * fails with "found [bpchar], but expecting [char(2) (Types#VARCHAR)]".
+     */
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "country", columnDefinition = "char(2)")
+    private String country;
+
+    /** When the SUPPLIER says the item changed — their clock, not ours. */
+    @Column(name = "source_updated_at")
+    private Instant sourceUpdatedAt;
+
+    /** When WE last polled the supplier. Drives the nightly purge query. */
+    @Column(name = "last_synced_at")
+    private Instant lastSyncedAt;
+
+    /**
+     * SHA-256 over the detail fields. A poll that yields the same hash found no
+     * change, so nobody is notified: one string compared instead of a dozen
+     * fields. A hex digest is always 64 characters, hence {@code char(64)} —
+     * same {@code CHAR} trap as {@link #country}, same two annotations.
+     */
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "details_hash", columnDefinition = "char(64)")
+    private String detailsHash;
+
+    /**
+     * When the answer to "what is this?" last really changed. Distinct from
+     * {@link #updatedAt}: a re-sync that changed nothing still bumps
+     * {@code updated_at}, and treating that as news is how you spam every
+     * subscriber.
+     */
+    @Column(name = "last_change_at")
+    private Instant lastChangeAt;
+
+    // ------------------------------------------------------------------
+    // EDITORIAL OVERRIDES — our own record, never purged
+    // ------------------------------------------------------------------
+
+    /**
+     * The retention clock has no claim on these fields: an admin authored them,
+     * not the supplier, so purging them would destroy our own data. The
+     * effective value is always {@code COALESCE(override, sourced)} — see
+     * {@link #effectiveTitle()} and {@link #effectiveReleaseDate()}.
+     *
+     * <p>They are also how an admin fixes a wrong date without waiting for the
+     * source: the next sync overwrites {@code title}/{@code releaseDate} and
+     * leaves the overrides alone.
+     */
+    @Column(name = "title_override", length = 300)
+    private String titleOverride;
+
+    @Column(name = "release_date_override")
+    private LocalDate releaseDateOverride;
+
+    /**
+     * Which fields are overridden, by name. Redundant with "override column is
+     * not null" until the day an admin deliberately overrides a field to the
+     * same value the source has — then the flag is the only record that a human
+     * made that decision.
+     */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "overridden_fields", nullable = false, columnDefinition = "text[]")
+    private String[] overriddenFields = new String[0];
+
+    /** Who decided. A bare uuid: admins live in identity-service (Day 3). */
+    @Column(name = "override_author_id")
+    private UUID overrideAuthorId;
+
+    @Column(name = "override_updated_at")
+    private Instant overrideUpdatedAt;
+
+    // ------------------------------------------------------------------
+    // bookkeeping
+    // ------------------------------------------------------------------
+
+    /** Stamped by us — see {@link #stampTimestamps()}. */
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    /**
+     * Stamped by us on every update. The DDL has {@code DEFAULT now()}, but V1
+     * creates no trigger, so nothing in Postgres would ever bump it — the
+     * default only covers rows inserted by hand.
+     */
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
+    /**
+     * OPTIMISTIC LOCKING. Hibernate never writes {@code version} blindly: every
+     * UPDATE becomes
+     * {@code ... WHERE id = ? AND version = ?} with {@code version = ? + 1}.
+     *
+     * <p>Two users open the same event at version 3. The first saves, and the
+     * row is now version 4. The second saves too, but their {@code WHERE} looks
+     * for version 3 and matches nothing — zero rows updated — and Hibernate
+     * throws {@code OptimisticLockException} instead of silently overwriting the
+     * first user's edit. No lock is held between the read and the write, which
+     * is why this scales where {@code SELECT ... FOR UPDATE} (pessimistic) turns
+     * every slow user into a blocked one.
+     *
+     * <p>Never assign this field: anything you set is overwritten. It is
+     * {@code long}, not {@code Long}, because the column is {@code NOT NULL}.
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private long version;
 
     protected Event() {
     }
@@ -141,5 +375,272 @@ public class Event {
 
     public void setReleaseDate(LocalDate releaseDate) {
         this.releaseDate = releaseDate;
+    }
+
+    public String getReleasePrecision() {
+        return releasePrecision;
+    }
+
+    public Event getParent() {
+        return parent;
+    }
+
+    /** {@code null} detaches the event from its container (it becomes top level). */
+    public void setParent(Event parent) {
+        this.parent = parent;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getAvailability() {
+        return availability;
+    }
+
+    public void setAvailability(String availability) {
+        this.availability = availability;
+    }
+
+    public Instant getActiveUntil() {
+        return activeUntil;
+    }
+
+    public void setActiveUntil(Instant activeUntil) {
+        this.activeUntil = activeUntil;
+    }
+
+    public Instant getDetailsExpiredAt() {
+        return detailsExpiredAt;
+    }
+
+    public void setDetailsExpiredAt(Instant detailsExpiredAt) {
+        this.detailsExpiredAt = detailsExpiredAt;
+    }
+
+    public String getSynopsis() {
+        return synopsis;
+    }
+
+    public void setSynopsis(String synopsis) {
+        this.synopsis = synopsis;
+    }
+
+    public String getPosterUrl() {
+        return posterUrl;
+    }
+
+    public void setPosterUrl(String posterUrl) {
+        this.posterUrl = posterUrl;
+    }
+
+    public String getExternalUrl() {
+        return externalUrl;
+    }
+
+    public void setExternalUrl(String externalUrl) {
+        this.externalUrl = externalUrl;
+    }
+
+    public String[] getGenres() {
+        return genres;
+    }
+
+    /** Varargs so callers write {@code setGenres("RPG", "Indie")}. */
+    public void setGenres(String... genres) {
+        this.genres = genres == null || genres.length == 0 ? new String[0] : genres.clone();
+    }
+
+    public String[] getPlatforms() {
+        return platforms;
+    }
+
+    public void setPlatforms(String... platforms) {
+        this.platforms = platforms == null || platforms.length == 0 ? new String[0] : platforms.clone();
+    }
+
+    public String getNetwork() {
+        return network;
+    }
+
+    public void setNetwork(String network) {
+        this.network = network;
+    }
+
+    public String getVenue() {
+        return venue;
+    }
+
+    public void setVenue(String venue) {
+        this.venue = venue;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public Instant getSourceUpdatedAt() {
+        return sourceUpdatedAt;
+    }
+
+    public void setSourceUpdatedAt(Instant sourceUpdatedAt) {
+        this.sourceUpdatedAt = sourceUpdatedAt;
+    }
+
+    public Instant getLastSyncedAt() {
+        return lastSyncedAt;
+    }
+
+    public void setLastSyncedAt(Instant lastSyncedAt) {
+        this.lastSyncedAt = lastSyncedAt;
+    }
+
+    public String getDetailsHash() {
+        return detailsHash;
+    }
+
+    public void setDetailsHash(String detailsHash) {
+        this.detailsHash = detailsHash;
+    }
+
+    public Instant getLastChangeAt() {
+        return lastChangeAt;
+    }
+
+    public void setLastChangeAt(Instant lastChangeAt) {
+        this.lastChangeAt = lastChangeAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public String getTitleOverride() {
+        return titleOverride;
+    }
+
+    public LocalDate getReleaseDateOverride() {
+        return releaseDateOverride;
+    }
+
+    /** Copy: the caller cannot reach inside the entity's state. */
+    public String[] getOverriddenFields() {
+        return overriddenFields.clone();
+    }
+
+    public UUID getOverrideAuthorId() {
+        return overrideAuthorId;
+    }
+
+    public Instant getOverrideUpdatedAt() {
+        return overrideUpdatedAt;
+    }
+
+    /**
+     * Records an editorial decision on the title.
+     *
+     * <p>One method rather than five setters, because the three facts — the
+     * value, who decided, and that the field is overridden — must never
+     * disagree. Half-written override state is how the "why does this event say
+     * something the source never said?" conversation starts.
+     */
+    public void overrideTitle(String title, UUID authorId) {
+        this.titleOverride = title;
+        this.overrideAuthorId = authorId;
+        this.overrideUpdatedAt = Instant.now();
+        addOverriddenField("title");
+    }
+
+    public void overrideReleaseDate(LocalDate releaseDate, UUID authorId) {
+        this.releaseDateOverride = releaseDate;
+        this.overrideAuthorId = authorId;
+        this.overrideUpdatedAt = Instant.now();
+        addOverriddenField("releaseDate");
+    }
+
+    private void addOverriddenField(String field) {
+        for (String existing : overriddenFields) {
+            if (existing.equals(field)) {
+                return;
+            }
+        }
+        String[] grown = Arrays.copyOf(overriddenFields, overriddenFields.length + 1);
+        grown[grown.length - 1] = field;
+        overriddenFields = grown;
+    }
+
+    /** The value the UI shows: the admin's decision wins over the supplier's. */
+    public String effectiveTitle() {
+        return titleOverride != null ? titleOverride : title;
+    }
+
+    public LocalDate effectiveReleaseDate() {
+        return releaseDateOverride != null ? releaseDateOverride : releaseDate;
+    }
+
+    /**
+     * The application owns the timestamps, for the same reason as in
+     * {@link Source}: V1 creates no trigger, so nothing in Postgres would ever
+     * bump {@code updated_at}.
+     */
+    @PrePersist
+    @PreUpdate
+    void stampTimestamps() {
+        Instant now = Instant.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        updatedAt = now;
+    }
+
+    /**
+     * Identity is {@link #id}. Unlike {@link Source} — whose id is a fixed
+     * reference value an admin assigns, and therefore null on a new object — an
+     * event's id is generated in the constructor, so it is known immediately and
+     * stable for the object's whole life.
+     */
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof Event event)) {
+            return false;
+        }
+        return id != null && id.equals(event.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
+
+    @Override
+    public String toString() {
+        return "Event[" + category + " \"" + effectiveTitle() + "\" " + releaseDate + "]";
     }
 }

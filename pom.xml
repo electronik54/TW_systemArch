@@ -38,6 +38,13 @@
     <!-- UTF-8 everywhere: source, resources and reports. Never rely on the OS default. -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <!--
+      The Docker Engine API version the docker-java client (under Testcontainers)
+      asks for. Docker 29 refuses anything below its minimum with a bare 400, and
+      docker-java's own default is 1.32 - hence this pin. Bump only if you have a
+      reason; see the surefire comment in <build>.
+    -->
+    <docker.api.version>1.44</docker.api.version>
   </properties>
 
   <modules>
@@ -63,5 +70,43 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <build>
+    <!--
+      pluginManagement = "configuration only, activate nothing here".
+      The Spring Boot parent already declares surefire; this block merges extra
+      configuration into it, and every child module inherits the result.
+    -->
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <configuration>
+            <!--
+              WHY THIS EXISTS - a real-world trap, not decoration.
+
+              Docker Engine 29 raised the floor on the API version it accepts and
+              answers 400 Bad Request to anything older. The docker-java client
+              that Testcontainers bundles asks for /v1.32/, so Testcontainers
+              cannot find a Docker environment at all and every integration test
+              dies at class initialisation with:
+
+                Could not find a valid Docker environment
+                ... BadRequestException (Status 400: {"ID":"","Containers":0, ...})
+
+              docker-java reads this key from env, ~/.docker-java.properties or
+              system properties (DefaultDockerClientConfig uses both). Passing it
+              to the forked test JVM keeps the fix in the repo instead of in one
+              developer's home directory.
+            -->
+            <systemPropertyVariables>
+              <api.version>${docker.api.version}</api.version>
+            </systemPropertyVariables>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
 
 </project>
