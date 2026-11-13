@@ -4,6 +4,16 @@ name: CI
 #   pull_request → gates the merge (broken code never reaches the default branch)
 #   push         → protects the default branch itself (direct pushes, merge commits)
 # Running only on push means the breakage has already landed.
+#
+# Why only `master`?
+#   Trunk-based development: `master` IS the product, and every merge to it is
+#   releasable. There is no second long-lived branch, so there is nothing to keep
+#   in sync, no drift, and no hotfix that has to be applied twice.
+#   Work happens on SHORT-LIVED `feature/*` branches and reaches master only
+#   through a pull request whose checks are green. Those branches are still built
+#   by this workflow: for a pull_request event the `branches` filter applies to
+#   the BASE branch, so every feature branch targeting master runs it.
+#   Unfinished work does not need a branch to hide in - it hides behind a flag.
 on:
   push:
     branches: [master]
