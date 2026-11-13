@@ -3,6 +3,10 @@
 > **Model: trunk-based development.** One long-lived branch. Every merge to it is
 > releasable. CI is the gate, not a reviewer's opinion.
 
+> **Every explanation of this material in chat carries a picture** (rule 23, `plan.md` §1): ASCII in
+> a plain fence, commits as short labels, branch names on the left, `master` on the right, the
+> reader's own hashes. The sentence says what happened; the diagram says where.
+
 ## 1. The model in one picture
 
 ```
@@ -61,14 +65,22 @@ Turning the feature on is therefore a configuration change and a restart, never 
 which is the whole reason it beats a branch. **Flag debt:** a flag that has been off for a
 year is deleted together with the code behind it, or the switch quietly becomes permanent.
 
-## 4. Branch protection to enable (GitHub → Settings → Branches)
+## 4. Branch protection — enabled on `master` (2026-11-13)
 
-For `master` only — one ruleset, because there is one long-lived branch:
+For `master` only: one **ruleset**, because there is one long-lived branch. A classic rule works
+too, but a ruleset starts with an **empty bypass list**, which is the property that matters (§10).
 
-- Require a pull request before merging (0 approvals while solo, 1 when a second dev joins).
-- Require status checks: **`Build and test (Java 21)`** (it appears in the list once CI has run on `master`).
-- Block force pushes · block deletions · allow **squash** merging only.
+- **Require a pull request before merging** — 0 approvals while solo, 1 when a second dev joins.
+- **Require status checks to pass** — **`Build and test (Java 21)`**, exactly as the `name:` of the
+  job in `ci.yml`. GitHub offers a check in that list **only after it has reported at least once**,
+  so protection is enabled *after* the first CI run, never before.
+- **Restrict deletions** · **Block force pushes** · **squash** merges only.
+- **Bypass list: empty.** Put *Repository admin* there and the admin can merge red — the gate becomes
+  a suggestion.
 - Optional: require linear history (redundant with squash-only, harmless).
+
+An **unrequired** check is decoration: GitHub shows the red X and leaves the merge button enabled.
+That is not a theory — PR #3 merged exactly that way (§10).
 
 ## 5. When it goes red
 
@@ -79,8 +91,9 @@ For `master` only — one ruleset, because there is one long-lived branch:
 | A flaky test | the author of that test | quarantine or fix it **the same day** — a flaky suite destroys rule 3, because people start ignoring red |
 | PR conflict | the author of the newer PR | `git fetch origin && git rebase origin/master`, resolve, `--force-with-lease` **the branch** only |
 
-The failure path is proven once, deliberately, with `feature/gate-lab` (§10). A gate
-nobody has seen fail is decoration.
+The failure path was proven once, deliberately (§10): PR #3 merged while its check was still
+running, `master` went red, and a revert PR took it back. A gate nobody has seen fail is
+decoration.
 
 ## 6. Releases
 
@@ -131,14 +144,29 @@ The cost is real: a flaky test suite makes the whole gate unaffordable.
 - No database service container — every persistence test extends `AbstractIntegrationTest` and
   starts its own `postgres:16` through Testcontainers.
 
-## 10. The lab — watch the gate bite (run once)
+## 10. The lab — the gate bit, and what it taught (done 2026-11-13)
 
-1. `git switch -c feature/gate-lab`
-2. Add `src/test/java/com/kodegravity/exr/catalog/lab/DeliberateFailureTest.java` — a plain JUnit test
-   asserting `3 == 4`, so only the pipeline is under test (no Spring, no Docker).
-3. Fail it **locally first**: `.\mvnw.cmd -pl :catalog-service -am test -Dtest=DeliberateFailureTest -Dsurefire.failIfNoSpecifiedTests=false`
-4. Push, open the PR into `master`. Verify: check red, merge blocked, `surefire-reports` downloadable.
-5. Fix forward on the same branch, push, watch green, squash-merge.
+1. `git switch -c feature/gate-lab`, add
+   `src/test/java/com/kodegravity/exr/catalog/lab/DeliberateFailureTest.java` — a plain JUnit test
+   asserting `3 == 4`, so only the pipeline is under test (no Spring, no Docker). Run it locally
+   first: **red**, `expected: 4 but was: 3`.
+2. Commit, push, open the PR into `master`. Run **#22** starts on the PR — a `pull_request` event
+   against base `master` is enough; no feature branch has to be listed in `ci.yml`.
+3. **The merge went through while #22 was still running.** Nothing stopped it, because no check was
+   **required** yet. That merge wrote `914d4fb` to `master`, and its own `push` run **#23** failed:
+   the trunk was red.
+4. Enable the ruleset (§4). It has to come *after* a CI run, because GitHub cannot offer a check in
+   the required list until that check has reported once.
+5. Take the red out with a **revert**, not a fix: `git switch -c fix/revert-gate-lab`,
+   `git revert --no-edit 914d4fb`, push, PR #4, squash-merged as `c315fc3` — trunk green again,
+   −39 lines, and the bad commit still visible in history.
+6. Delete both branches. `feature/gate-lab` must never be merged, so its remote copy goes too:
+   `git push origin --delete feature/gate-lab`.
+
+**What the lab proved, one line each.** A check that is not required cannot block anything. Branch
+protection can only name a check that has already reported. A revert is a normal commit, so it passes
+the same gate it repairs. And `git branch -d` cannot tidy up after a squash merge — the content is on
+`master`, the commits are not — so the deletion needs `-D`.
 
 ## 11. The 30-second interview answer
 

@@ -26,10 +26,10 @@ system design is the point. Java 21 + Spring Boot 3 microservices on AWS.
 
 | | |
 |---|---|
-| **Phase** | Phase 0 (foundations) complete · Day 1 complete · **Day 2 in progress** (2.1–2.5 ✅) |
+| **Phase** | Phase 0 (foundations) complete · Day 1 complete · **Day 2 in progress** (2.1–2.5 ✅, plus the CI-gate lab: `master` is protected and green) |
 | **Code** | `libs/exr-common` (correlation-id filter, RFC 7807 error model, auto-configuration) + `services/catalog-service` (`Source`/`Event` entities, `EventRepository`, Flyway `V1`) — **18 tests green** (11 + 7) |
 | **Services** | `catalog-service` exists and boots; the persistence tests start their own `postgres:16` via Testcontainers |
-| **CI** | `.github/workflows/ci.yml` green on `master`; no database service container (the tests bring their own) |
+| **CI** | `.github/workflows/ci.yml` green on `master`; no database service container (the tests bring their own). Since 2026-11-13 `master` is **protected by a ruleset** that requires the check **`Build and test (Java 21)`**, blocks force pushes and deletions, and has an empty bypass list |
 | **Repo** | `https://github.com/electronik54/TW_systemArch` — **trunk-based**, `master` is the only long-lived branch (`git-workflow.md`) |
 
 **Authoritative resume point:** [`plan.md` §0 (RESUME HERE)](plan.md) and §11 (progress log).
@@ -57,7 +57,7 @@ resources/docs/          index.md · plan.md · projectDetails.md · need.txt ·
 
 ## 6. Rules an agent must not break
 
-The full list is `plan.md` §1. The five that cause real damage if forgotten:
+The full list is `plan.md` §1. The six that cause real damage if forgotten:
 
 1. **One step at a time.** Explain before writing, explain after, then stop and wait. One
    concept or one file per turn — never a five-file dump.
@@ -71,6 +71,10 @@ The full list is `plan.md` §1. The five that cause real damage if forgotten:
    bracketed at first use so it can be recognised in an interview. Never repair a sentence
    inside the reply (*"ignore the wording"*, *"what I meant was"*): delete it and send the
    clean one, because a reply that argues with itself is what makes the user ask for a re-tell.
+6. **GitHub explanations come with a diagram** (`plan.md` rule 23). Branches, pushes, pull requests,
+   merges, conflicts, checks, tags — draw it first: ASCII in a plain fence, commits as short labels,
+   branch names on the left, `master` on the right, the reader's own hashes. Before and after are two
+   pictures, never one.
 
 Also: `plan.md` §1.1 records that threading, third-party API access and circuit breakers are
 **three separate topics** — do not re-bundle them.
@@ -81,5 +85,5 @@ Also: `plan.md` §1.1 records that threading, third-party API access and circuit
 2. Read `plan.md` §11 (progress) — what is done, what is not.
 3. Run the topic gate, then continue from the next unticked item in §9.
 
-> **Last updated:** rev 29. Keep this file's status table in sync whenever `plan.md` advances a
+> **Last updated:** rev 32. Keep this file's status table in sync whenever `plan.md` advances a
 > phase — and read `git-workflow.md` before committing anything.
