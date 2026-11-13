@@ -27,35 +27,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # The persistence tests (@SpringBootTest) talk to a REAL Postgres: the app
-    # cannot start without one (Flyway + ddl-auto: validate). GitHub starts this
-    # sidecar container next to the job; Flyway then runs V1 on the first
-    # connection, which creates the 4 tables AND the seed rows the mapping tests
-    # read — so there is no separate "prepare the database" step.
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: catalog
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        # Without a health check the steps start while the server is still
-        # initialising, and the first connection fails intermittently.
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-    env:
-      # application.yml defaults to 55432 (the developer's Docker container);
-      # CI uses the service container on 5432. Overriding the env var here is
-      # better than teaching the application about CI.
-      EXR_DB_URL: jdbc:postgresql://localhost:5432/catalog
-      EXR_DB_USER: postgres
-      EXR_DB_PASSWORD: postgres
+    # NO DATABASE SERVICE CONTAINER — removed in Day 2.5.
+    #
+    # The persistence tests still talk to a real Postgres (the app cannot start
+    # without one: Flyway + ddl-auto: validate), but they no longer borrow one
+    # from CI. Every such test extends AbstractIntegrationTest, which starts its
+    # own postgres:16 through Testcontainers, lets Flyway build the schema from
+    # V1 (tables AND seed rows), and passes url/user/password to Spring with
+    # @DynamicPropertySource. The ubuntu runner already has a Docker daemon, so
+    # there is nothing to declare, nothing to health-check and nothing to clean
+    # up. One less moving part, and the database is identical to the one used on
+    # a developer machine instead of merely similar.
+    #
+    # The trap this opens: a NEW @SpringBootTest that forgets to extend
+    # AbstractIntegrationTest falls back to EXR_DB_URL's default
+    # (localhost:55432) — which passes on a machine that happens to have `exr-pg`
+    # running and fails here. CI is the loud one; the local run can lie.
 
     steps:
       - name: Checkout
