@@ -31,6 +31,14 @@ The type matches the commit types in §7, so branch and commit tell the same sto
 **There is no `development` branch and no `release/*` branch.** See §8 for why, and
 for the conditions under which that decision would be revisited.
 
+The conventional four-role model is `master` (production), `development` (staging),
+`feature/*` and `hotfix/*`. We keep **three of the four roles and move the fourth
+somewhere else**: the staging role is played by a **staging environment** (a second
+deployment fed by `master`), not by a branch, and production is reached by a **tag**
+plus an approval. The rule behind it: a **branch** holds work in progress, an
+**environment** holds a running copy. Mixing the two roles into one branch is what
+turns `development` into a second trunk that has to be merged both ways.
+
 ## 3. The rules, and the reason for each
 
 | # | Rule | Why |
@@ -45,6 +53,13 @@ for the conditions under which that decision would be revisited.
 | 8 | Rebase on `master` before asking for review | your PR shows only your change, not the whole history |
 | 9 | Releases are **tags on `master`** | a tag names an exact, tested commit; a branch does not |
 | 10 | Red on `master` → **revert first**, investigate second | the trunk belongs to everyone; a fix can wait, a blocked team cannot |
+
+**How rule 7 actually looks in this repository.** The value lives in configuration, not in
+code: `exr.features.<name>: false` in `application.yml`, and the bean that belongs to the
+feature carries `@ConditionalOnProperty(name = "exr.features.<name>", havingValue = "true")`.
+Turning the feature on is therefore a configuration change and a restart, never a merge —
+which is the whole reason it beats a branch. **Flag debt:** a flag that has been off for a
+year is deleted together with the code behind it, or the switch quietly becomes permanent.
 
 ## 4. Branch protection to enable (GitHub → Settings → Branches)
 
