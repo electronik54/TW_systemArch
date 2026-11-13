@@ -20,16 +20,17 @@ system design is the point. Java 21 + Spring Boot 3 microservices on AWS.
 | 1 | **[`plan.md`](plan.md)** | **The operating manual.** Working rules, architecture, decisions (D-001…), the day-by-day curriculum, hardening backlog, progress log, resume point | **Always first** — especially §0 and §1 |
 | 2 | [`projectDetails.md`](projectDetails.md) | Product spec: roles & quotas, event model, data sources, notifications, payments, admin/dev capabilities | Before any feature work |
 | 3 | [`need.txt`](need.txt) | Learning coverage map — what we build hands-on vs what is deliberately out of scope, plus answered design questions | When asking "do we cover X?" |
+| 4 | **[`git-workflow.md`](git-workflow.md)** | **Git & branching strategy as architecture**: trunk-based model, branch types and lifetimes, PR/merge rules, branch protection, release tagging, Conventional Commits, what was rejected and why, and how CI maps to it | Before your first commit — and whenever you are unsure whether something belongs on a branch |
 
 ## 3. Current status
 
 | | |
 |---|---|
-| **Phase** | Phase 0 (foundations) complete · Day 1 complete · **next: Day 2 — data design** |
-| **Code** | `libs/exr-common` only: correlation-id filter, RFC 7807 error model, auto-configuration. **11 unit tests green** |
-| **Services** | **none yet** — no `services/` module exists |
-| **CI** | `.github/workflows/ci.yml` green on `master` |
-| **Repo** | `https://github.com/electronik54/TW_systemArch` (branch `master`) |
+| **Phase** | Phase 0 (foundations) complete · Day 1 complete · **Day 2 in progress** (2.1–2.5 ✅) |
+| **Code** | `libs/exr-common` (correlation-id filter, RFC 7807 error model, auto-configuration) + `services/catalog-service` (`Source`/`Event` entities, `EventRepository`, Flyway `V1`) — **18 tests green** (11 + 7) |
+| **Services** | `catalog-service` exists and boots; the persistence tests start their own `postgres:16` via Testcontainers |
+| **CI** | `.github/workflows/ci.yml` green on `master`; no database service container (the tests bring their own) |
+| **Repo** | `https://github.com/electronik54/TW_systemArch` — **trunk-based**, `master` is the only long-lived branch (`git-workflow.md`) |
 
 **Authoritative resume point:** [`plan.md` §0 (RESUME HERE)](plan.md) and §11 (progress log).
 This table is a convenience copy — if the two ever disagree, `plan.md` wins.
@@ -48,15 +49,15 @@ pom.xml                  Maven aggregator + parent (single source of version gov
 mvnw / mvnw.cmd          Maven wrapper (Maven pinned to 3.9.15)
 .github/workflows/       ci.yml — checkout -> JDK 21 -> ./mvnw verify
 libs/exr-common/         shared plumbing (request ids, error shape) — NEVER domain code
-services/                one module per service (empty until Day 2+)
+services/catalog-service/ catalog domain: entities, repository, Flyway V1, Testcontainers base class
 infra/                   docker-compose for local dev, Terraform for AWS (not yet created)
 ui/web/                  React + TypeScript SPA (not yet created)
-resources/docs/          this file, plan.md, projectDetails.md, need.txt
+resources/docs/          index.md · plan.md · projectDetails.md · need.txt · git-workflow.md · catalog/schema.md
 ```
 
 ## 6. Rules an agent must not break
 
-The full list is `plan.md` §1. The four that cause real damage if forgotten:
+The full list is `plan.md` §1. The five that cause real damage if forgotten:
 
 1. **One step at a time.** Explain before writing, explain after, then stop and wait. One
    concept or one file per turn — never a five-file dump.
@@ -65,6 +66,11 @@ The full list is `plan.md` §1. The four that cause real damage if forgotten:
    command and say *why*.
 4. **Never put domain code in `libs/exr-common`.** Request ids and error shapes only. If it
    ever imports a JPA entity, the service boundaries have collapsed.
+5. **Plain words first, the term in brackets** (`plan.md` rules 14, 20, 22). The first attempt
+   is written in the short form — numbered steps, one idea per sentence, no tables, a term
+   bracketed at first use so it can be recognised in an interview. Never repair a sentence
+   inside the reply (*"ignore the wording"*, *"what I meant was"*): delete it and send the
+   clean one, because a reply that argues with itself is what makes the user ask for a re-tell.
 
 Also: `plan.md` §1.1 records that threading, third-party API access and circuit breakers are
 **three separate topics** — do not re-bundle them.
@@ -75,5 +81,5 @@ Also: `plan.md` §1.1 records that threading, third-party API access and circuit
 2. Read `plan.md` §11 (progress) — what is done, what is not.
 3. Run the topic gate, then continue from the next unticked item in §9.
 
-> **Last updated:** Day 1 closeout. Keep this file's status table in sync whenever `plan.md`
-> advances a phase.
+> **Last updated:** rev 29. Keep this file's status table in sync whenever `plan.md` advances a
+> phase — and read `git-workflow.md` before committing anything.
