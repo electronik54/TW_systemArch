@@ -134,7 +134,7 @@ The important property: application code can be bypassed by a bug, a retry, or a
 | `events_platforms_gin` | GIN (`platforms`) | filtering by platform |
 | `events_city_idx` | (`city`) WHERE `city IS NOT NULL` | local events filtered by city |
 | `events_last_synced_idx` | (`last_synced_at`) | ingestion diffing: "what has not been refreshed in a while" |
-| `events_title_search_idx` | GIN on a `tsvector` of `title` | free-text search (built on Day 2.6) |
+| `events_search_gin` | GIN (`search_vector`) — a **generated** `tsvector` of the effective title (weight `A`) + synopsis (weight `B`) | free-text search, added by `V2__event_search.sql` (Day 2.6) |
 
 ---
 
@@ -201,7 +201,7 @@ the scenes, and never make the user wait for freshness.
 | Q1 | Exact `details_retention_days` and `cache_ttl_seconds` per source — the real numbers from each licence | Day 9 |
 | Q2 | **Is a title "licensed content"?** Keeping the title forever is what makes autocomplete work, but some terms say "delete all data". Verify per source, and keep `expiry_policy` configurable because of it | Day 10B |
 | Q3 | For a source whose policy is `DELETE_ALL`, what happens to live subscriptions pointing at a purged event? (cascade today) | Day 13 |
-| Q4 | Does the free-text search index cover only `title` (always present) or `synopsis` too (blanks when `STALE`)? | Day 2.6 |
+| Q4 | **Does the free-text search index cover only `title` (always present) or `synopsis` too (blanks when `STALE`)?** — **Answered in `V2`:** both. `title` at weight `A` under the `simple` config (so "It" stays findable), `synopsis` at weight `B` under `english` (so "run" finds "running"). A purged synopsis needs no maintenance: the column is `GENERATED ... STORED`, so `synopsis = NULL` rebuilds the vector on the spot | Day 2.6 ✅ |
 ---
 
 ## 8. `expiry_policy` — the one switch that decides what happens at the deadline
