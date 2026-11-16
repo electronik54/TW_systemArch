@@ -23,8 +23,9 @@ import org.testcontainers.utility.DockerImageName;
  *   <li>{@code @DynamicPropertySource} hands Spring the random port, the user
  *       and the password, overriding the {@code localhost:55432} values in
  *       {@code application.yml};</li>
- *   <li>Flyway then runs {@code V1__catalog_init.sql} against the empty
- *       container, so the schema is built by the same migration as production.</li>
+ *   <li>Flyway then runs every migration — {@code V1__catalog_init.sql}, then
+ *       {@code V2__event_search.sql} — against the empty container, so the
+ *       schema is built by the same scripts as production, in the same order.</li>
  * </ol>
  */
 @SpringBootTest

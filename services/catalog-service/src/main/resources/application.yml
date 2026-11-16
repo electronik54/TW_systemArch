@@ -1,6 +1,9 @@
 spring:
   application:
     name: catalog-service
+  output:
+    ansi:
+      enabled: always #for colored logs in terminal
 
   # ---------------------------------------------------------------------------
   # Credentials come from ENVIRONMENT VARIABLES, with a local default in the
