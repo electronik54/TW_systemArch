@@ -54,6 +54,7 @@
     -->
     <module>libs/exr-common</module>
     <module>services/catalog-service</module>
+    <module>services/identity-service</module>
   </modules>
 
   <!--

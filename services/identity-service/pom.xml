@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.kodegravity.exr</groupId>
+    <artifactId>exr-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>identity-service</artifactId>
+  <packaging>jar</packaging>
+
+  <name>EXR :: Identity Service</name>
+  <description>Owns users, credentials, account states and token issuance</description>
+
+  <dependencies>
+    <!-- web layer: the filter chain lives here, and so do /register and /login -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+
+    <!-- SECURITY. Note what this single dependency does on its own: every
+         endpoint starts returning 401, with a generated password printed at
+         startup. Day 4.2 replaces that default with an explicit chain. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+
+    <!-- persistence: users and their hashes -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+
+    <!-- Schema migrations. Flyway 10 needs the database module separately, or
+         startup fails with "Unsupported Database: PostgreSQL". -->
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <!-- shared plumbing: correlation ids + RFC 7807 error shape.
+         A security failure must also come back in that shape, not as an HTML
+         error page - Day 4.2 wires that up. No <version>: the parent owns it. -->
+    <dependency>
+      <groupId>com.kodegravity.exr</groupId>
+      <artifactId>exr-common</artifactId>
+    </dependency>
+
+    <!-- tests -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.security</groupId>
+      <artifactId>spring-security-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <!--
+        WHY THIS PLUGIN IS HERE
+        Without it, "run the app" means pointing an IDE at target/classes and
+        hoping the resources were copied there. With it, there is one command that
+        always works, from a clean checkout:
+
+            .\mvnw.cmd -pl services/identity-service -am spring-boot:run
+
+        Maven copies src/main/resources into target/classes as part of the same
+        lifecycle, so application.yml is on the classpath by construction rather
+        than by luck. The same plugin is what will produce the runnable jar on
+        Day 16 for the Docker image.
+
+        No <version>: spring-boot-starter-parent manages the plugin version, which
+        is exactly why the parent is a Spring Boot parent and not a plain pom.
+      -->
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

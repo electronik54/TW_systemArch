@@ -50,18 +50,37 @@ import java.util.UUID;
 public class EventService {
 
     private final EntityManager entityManager;
+    private final ImportAuditService auditService;
 
-    public EventService(EntityManager entityManager) {
+    public EventService(EntityManager entityManager, ImportAuditService auditService) {
         this.entityManager = entityManager;
+        this.auditService = auditService;
     }
 
     /**
-     * Imports a batch of events as one unit of work.
+     * Imports a batch of events as one unit of work, and records the attempt when
+     * it fails.
      *
      * <p>Two events that clash on {@code (source_id, external_id)} must leave
      * <b>nothing</b> behind — not the first event that was already accepted. That
      * promise is the whole reason this method is transactional, and it is what
      * {@code EventServiceTransactionTest} proves by watching the table afterwards.
+     *
+     * <p><b>Why the {@code flush()} is not decoration.</b> Without it, nothing
+     * reaches Postgres until the proxy commits, which happens <em>after</em> this
+     * method has returned — so the clash is thrown outside the method and the
+     * {@code catch} below would never run. The flush moves the INSERTs forward on
+     * purpose: the failure surfaces here, where it can still be recorded. The
+     * cost is one round trip, and the benefit is that the record of the failure
+     * exists at all.
+     *
+     * <p><b>Why {@code recordFailure} is a separate bean.</b> It is annotated
+     * {@code REQUIRES_NEW}, so it must be called through a proxy. Called from
+     * inside this class it would join <em>this</em> transaction — the one about to
+     * be rolled back — and the audit row would vanish with the events.
+     *
+     * <p>The exception is rethrown unchanged: recording the failure must not turn
+     * a broken import into a successful one.
      *
      * <p>The method takes entities rather than a DTO on purpose: converting an
      * external payload into an {@code Event} is the caller's job (the ingestion
@@ -69,17 +88,20 @@ public class EventService {
      * this layer — the API layer maps them to records.
      */
     @Transactional
-    public List<UUID> importAll(List<Event> events) {
+    public List<UUID> importAll(short sourceId, List<Event> events) {
         List<UUID> imported = new ArrayList<>(events.size());
 
-        for (Event event : events) {
-            entityManager.persist(event);
-            imported.add(event.getId());
+        try {
+            for (Event event : events) {
+                entityManager.persist(event);
+                imported.add(event.getId());
+            }
+            entityManager.flush();
+        } catch (RuntimeException failure) {
+            auditService.recordFailure(sourceId, events.size(), failure);
+            throw failure;
         }
 
-        // No flush, no commit, no try/catch: the proxy commits when this method
-        // returns, and rolls back when it throws. Writing them here would be a
-        // second, competing owner of the same decision.
         return imported;
     }
 }

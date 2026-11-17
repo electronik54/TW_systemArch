@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
+import org.springframework.core.Ordered;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -21,8 +22,18 @@ import java.util.regex.Pattern;
  *
  * <p>This is deliberately NOT a request-id generator that trusts the caller: the
  * incoming header is treated as untrusted input (see {@link #sanitise(String)}).
+ *
+ * <p><b>Why it implements {@link Ordered}, and why that is not cosmetic.</b>
+ * Spring Boot registers filter beans with the LOWEST precedence unless they say
+ * otherwise, while Spring Security registers its own chain at order
+ * {@code -100}. The result, measured on this project: an <b>allowed</b> request
+ * reached this filter and got an id, but a <b>refused</b> one was answered by
+ * security first and carried no id at all - and a rejection is exactly the
+ * request somebody will want to trace. Running at
+ * {@link Ordered#HIGHEST_PRECEDENCE} puts this filter in front of everything, so
+ * every response - 200, 401 or 500 - comes back with the same handle.
  */
-public class CorrelationIdFilter extends OncePerRequestFilter {
+public class CorrelationIdFilter extends OncePerRequestFilter implements Ordered {
 
     /** The header name used on the wire, in both directions. */
     public static final String HEADER = "X-Correlation-Id";
@@ -39,6 +50,16 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
      * and forge entries in our logs.
      */
     private static final Pattern SAFE = Pattern.compile("[A-Za-z0-9._-]+");
+
+    /**
+     * Before everything, including Spring Security's chain (-100). See the class
+     * javadoc for the failure this fixes.
+     */
+    @Override
+    public int getOrder() {
+        return Ordered.HIGHEST_PRECEDENCE;
+    }
+
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,

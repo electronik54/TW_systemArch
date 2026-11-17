@@ -52,13 +52,16 @@ class EventServiceTransactionTest extends AbstractIntegrationTest {
     @AfterEach
     void cleanUp() {
         // No rollback to lean on, so the test removes its own rows by name.
+        // import_attempts is emptied too: the failure path writes there now, and a
+        // leftover row would make the next run's count wrong.
+        jdbc.update("delete from import_attempts");
         jdbc.update("delete from events where external_id like 'svc-test-%'");
     }
 
     @Test
     @DisplayName("a successful import is committed and visible from outside the service")
     void successfulImportCommits() {
-        eventService.importAll(List.of(
+        eventService.importAll((short) 1, List.of(
                 draft("svc-test-a", "First"),
                 draft("svc-test-b", "Second")));
 
@@ -66,18 +69,19 @@ class EventServiceTransactionTest extends AbstractIntegrationTest {
         // cannot see uncommitted writes from another transaction.
         assertThat(count("svc-test-a")).isEqualTo(1);
         assertThat(count("svc-test-b")).isEqualTo(1);
+        assertThat(countAttempts()).isZero();
     }
 
     @Test
     @DisplayName("a clash rolls the whole batch back - the first event does not survive")
     void clashRollsBackEverything() {
         // 1. One event exists, committed on its own.
-        eventService.importAll(List.of(draft("svc-test-taken", "Already here")));
+        eventService.importAll((short) 1, List.of(draft("svc-test-taken", "Already here")));
         assertThat(count("svc-test-taken")).isEqualTo(1);
 
         // 2. A batch whose FIRST event is fine and whose SECOND clashes on
         //    (source_id, external_id).
-        Throwable failure = catchThrowable(() -> eventService.importAll(List.of(
+        Throwable failure = catchThrowable(() -> eventService.importAll((short) 1, List.of(
                 draft("svc-test-fresh", "Should never land"),
                 draft("svc-test-taken", "Duplicate"))));
 
@@ -92,6 +96,23 @@ class EventServiceTransactionTest extends AbstractIntegrationTest {
         //    not in the table.
         assertThat(count("svc-test-fresh")).isZero();
         assertThat(count("svc-test-taken")).isEqualTo(1);
+
+        // 4. THE POINT OF THIS STEP: one finished audit row survived, written in
+        //    its own transaction (REQUIRES_NEW) while this one was failing. If the
+        //    annotation were missing, this count would be 0 - the row would have
+        //    rolled back with the events.
+        assertThat(countFailedAttempts()).isEqualTo(1);
+    }
+
+    private int countFailedAttempts() {
+        Integer rows = jdbc.queryForObject(
+                "select count(*) from import_attempts where failed_at is not null", Integer.class);
+        return rows == null ? 0 : rows;
+    }
+
+    private int countAttempts() {
+        Integer rows = jdbc.queryForObject("select count(*) from import_attempts", Integer.class);
+        return rows == null ? 0 : rows;
     }
 
     private int count(String externalId) {
