@@ -6,6 +6,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -70,7 +72,11 @@ public class SecurityConfig {
                  * internet.
                  */
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/public/**").permitAll()
+                        // Open: the health-style probe, and the registration/login doors.
+                        // Every opening here is a decision, which is why it is written
+                        // as an explicit list rather than a pattern that could quietly
+                        // grow to cover more than intended.
+                        .requestMatchers("/api/public/**", "/api/auth/**").permitAll()
                         .anyRequest().authenticated())
 
                 /*
@@ -96,5 +102,28 @@ public class SecurityConfig {
                 ;
 
         return http.build();
+    }
+
+    /**
+     * The one component that ever sees a plaintext password: it turns it into a
+     * BCrypt digest, and later compares a typed password with a stored digest.
+     *
+     * <p><b>Why BCrypt and not MD5/SHA-256.</b> A fast hash is the wrong tool for
+     * passwords. SHA-256 is designed to be quick, so a stolen table can be
+     * attacked at billions of guesses per second on a GPU. BCrypt is deliberately
+     * slow, and its cost factor is a knob: the default here (10) means one hash
+     * costs tens of milliseconds - unnoticeable once at login, ruinous multiplied
+     * by millions of guesses. Raising it to 12 is roughly four times slower, which
+     * is why the number is chosen by measuring on real hardware, never by copying
+     * a tutorial.
+     *
+     * <p><b>The salt is inside the digest.</b> BCrypt generates a random salt per
+     * call and stores it in the output string, so two users with the same password
+     * get different hashes and one cracked hash teaches an attacker nothing about
+     * the next. Nothing extra to manage, nothing to keep secret.
+     */
+    @Bean
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
