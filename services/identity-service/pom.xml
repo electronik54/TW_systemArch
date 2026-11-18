@@ -33,6 +33,14 @@
       <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
 
+    <!-- JWT (Day 5.1). This starter brings `spring-security-oauth2-jose`, i.e.
+         Nimbus: NimbusJwtEncoder / NimbusJwtDecoder, and the resource-server filter
+         used from 5.3. No <version>: the Boot parent manages it. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
     <!-- persistence: users and their hashes -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

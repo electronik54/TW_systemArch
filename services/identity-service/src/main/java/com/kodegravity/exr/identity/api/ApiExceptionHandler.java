@@ -5,6 +5,7 @@ import com.kodegravity.exr.identity.domain.EmailAlreadyUsedException;
 import com.kodegravity.exr.identity.domain.WeakPasswordException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -58,5 +59,30 @@ public class ApiExceptionHandler {
                 exception.getMessage());
         problem.setProperty("violations", exception.getViolations());
         return problem;
+    }
+
+    /**
+     * 401 for every way a login can fail: wrong password, unknown email, locked
+     * account, suspended account.
+     *
+     * <p><b>One status and one sentence for four causes, on purpose.</b> A message that
+     * distinguishes "no such email" from "wrong password" turns the endpoint into an
+     * account-enumeration oracle: an attacker learns which addresses are registered
+     * without guessing a single password. The detailed reason is already in the
+     * database ({@code failed_attempts}, {@code locked_until}) and in the audit trail,
+     * which is where an operator should look.
+     *
+     * <p>{@code AuthenticationException} is the Spring parent of
+     * {@code BadCredentialsException}, {@code LockedException} and
+     * {@code DisabledException}, so one handler covers the three refusals our
+     * {@code DbUserDetailsService} can produce.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail couldNotSignIn(AuthenticationException exception) {
+        return ProblemSupport.create(
+                HttpStatus.UNAUTHORIZED,
+                "invalid-credentials",
+                "Could not sign in",
+                "The email and password did not match an active account.");
     }
 }

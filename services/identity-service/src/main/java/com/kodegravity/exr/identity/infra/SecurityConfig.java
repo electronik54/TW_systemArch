@@ -1,14 +1,25 @@
 package com.kodegravity.exr.identity.infra;
 
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.kodegravity.exr.identity.application.TokenService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 
 /**
  * The security policy for this service, written down instead of inherited.
@@ -125,5 +136,39 @@ public class SecurityConfig {
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    /**
+     * Signs tokens. HMAC with one shared secret, because today the only verifier is a
+     * service we also deploy (5.3).
+     *
+     * <p><b>The tradeoff, stated once.</b> HMAC means every verifier holds the same
+     * secret, so any of them could also <em>mint</em> tokens. RSA fixes that - the
+     * signer keeps the private key and everyone else only has the public one - at the
+     * cost of key management and a slower signature. The decision moves to RSA on the
+     * day a service outside our deployment must verify tokens, not before.
+     */
+    @Bean
+    JwtEncoder jwtEncoder(@Value("${exr.identity.jwt.secret}") String secret) {
+        SecretKey key = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        return new NimbusJwtEncoder(new ImmutableSecret<>(key));
+    }
+
+    @Bean
+    TokenService tokenService(JwtEncoder jwtEncoder,
+                              @Value("${exr.identity.jwt.issuer}") String issuer,
+                              @Value("${exr.identity.jwt.audience}") String audience) {
+        return new TokenService(jwtEncoder, issuer, audience);
+    }
+
+    /**
+     * The same entry point the HTTP Basic filter uses, exposed so a controller can call
+     * it by hand. That is what makes {@code POST /api/auth/login} reuse everything from
+     * Day 4.3: the account-state check, the BCrypt comparison, the failure counter and
+     * the lockout - none of it is re-implemented, because none of it is bypassed.
+     */
+    @Bean
+    AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
     }
 }

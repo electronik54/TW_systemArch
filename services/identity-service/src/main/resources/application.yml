@@ -38,3 +38,28 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: false
+
+# -----------------------------------------------------------------------------
+# JWT (Day 5.1-5.2). The secret is a DEVELOPMENT value: it is in the repo, so
+# anyone who can read the repo can mint a valid token. Production reads it from
+# Secrets Manager through an environment variable (Day 17.8), and the service
+# refuses to start without it. The 32-byte minimum is not a style choice - HS256
+# refuses a shorter key.
+# -----------------------------------------------------------------------------
+exr:
+  identity:
+    jwt:
+      secret: ${EXR_JWT_SECRET:exr-dev-only-secret-32-bytes-minimum!}
+      # Who minted the token. A service rejects a token with another issuer.
+      issuer: exr-identity
+      # Who the token is FOR. This is the claim that stops a token minted for one
+      # audience being replayed against another (7.6).
+      audience: exr-api
+    # A SIBLING of `jwt`, not a child (7.6). It is not part of the token format - it is
+    # how a caller is allowed to ASK for a token. Nested one level deeper it would
+    # become `exr.identity.jwt.service-key`, and the service would refuse to start with
+    # "Could not resolve placeholder", which is the mistake this comment prevents.
+    # Development value, like the signing secret above: production reads it from
+    # Secrets Manager and rotates it.
+    service-key: ${EXR_SERVICE_KEY:exr-dev-only-service-key}
+
