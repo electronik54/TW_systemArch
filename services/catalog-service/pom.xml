@@ -25,6 +25,18 @@
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
 
+    <!-- SECURITY (Day 5.3). Two dependencies, not one: the resource-server starter
+         brings the JWT machinery (Nimbus + the bearer-token filter), and the security
+         starter brings the auto-configuration that makes a chain apply at all. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
     <!-- persistence: Hibernate + Spring Data repositories -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

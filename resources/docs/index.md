@@ -21,13 +21,14 @@ system design is the point. Java 21 + Spring Boot 3 microservices on AWS.
 | 2 | [`projectDetails.md`](projectDetails.md) | Product spec: roles & quotas, event model, data sources, notifications, payments, admin/dev capabilities | Before any feature work |
 | 3 | [`need.txt`](need.txt) | Learning coverage map — what we build hands-on vs what is deliberately out of scope, plus answered design questions | When asking "do we cover X?" |
 | 4 | **[`git-workflow.md`](git-workflow.md)** | **Git & branching strategy as architecture**: trunk-based model, branch types and lifetimes, PR/merge rules, branch protection, release tagging, Conventional Commits, what was rejected and why, and how CI maps to it | Before your first commit — and whenever you are unsure whether something belongs on a branch |
+| 5 | [`git_recap.md`](git_recap.md) | **Git learned by doing** — the planned sandbox session: two clones as two engineers, four plain text files, five stages from "first commit" to "the secret was committed", a tree diagram and 2–3 questions at every step | When you want to practise git rather than look up a rule |
 
 ## 3. Current status
 
 | | |
 |---|---|
-| **Phase** | Phase 0 (foundations) complete · Day 1 complete · **Day 2 in progress** (2.1–2.5 ✅, plus the CI-gate lab: `master` is protected and green) |
-| **Code** | `libs/exr-common` (correlation-id filter, RFC 7807 error model, auto-configuration) + `services/catalog-service` (`Source`/`Event` entities, `EventRepository`, Flyway `V1`) — **18 tests green** (11 + 7) |
+| **Phase** | Phase 0 (foundations) complete · Day 1 complete · **Day 2 in progress** (2.1–2.6 ✅, plus the CI-gate lab: `master` is protected and green) |
+| **Code** | `libs/exr-common` (correlation-id filter, RFC 7807 error model, auto-configuration) + `services/catalog-service` (`Source`/`Event` entities, `EventRepository`, `EventSearchRepository`, Flyway `V1` + `V2`) — **23 tests green** (11 + 12): 18 before 2.6, plus 4 search tests and 1 migration test |
 | **Services** | `catalog-service` exists and boots; the persistence tests start their own `postgres:16` via Testcontainers |
 | **CI** | `.github/workflows/ci.yml` green on `master`; no database service container (the tests bring their own). Since 2026-11-13 `master` is **protected by a ruleset** that requires the check **`Build and test (Java 21)`**, blocks force pushes and deletions, and has an empty bypass list |
 | **Repo** | `https://github.com/electronik54/TW_systemArch` — **trunk-based**, `master` is the only long-lived branch (`git-workflow.md`) |
@@ -49,10 +50,10 @@ pom.xml                  Maven aggregator + parent (single source of version gov
 mvnw / mvnw.cmd          Maven wrapper (Maven pinned to 3.9.15)
 .github/workflows/       ci.yml — checkout -> JDK 21 -> ./mvnw verify
 libs/exr-common/         shared plumbing (request ids, error shape) — NEVER domain code
-services/catalog-service/ catalog domain: entities, repository, Flyway V1, Testcontainers base class
+services/catalog-service/ catalog domain: entities, repositories (JPA + a JDBC search), Flyway V1 + V2, Testcontainers base class
 infra/                   docker-compose for local dev, Terraform for AWS (not yet created)
 ui/web/                  React + TypeScript SPA (not yet created)
-resources/docs/          index.md · plan.md · projectDetails.md · need.txt · git-workflow.md · catalog/schema.md
+resources/docs/          index.md · plan.md · projectDetails.md · need.txt · git-workflow.md · git_recap.md · catalog/schema.md
 ```
 
 ## 6. Rules an agent must not break
@@ -74,7 +75,9 @@ The full list is `plan.md` §1. The six that cause real damage if forgotten:
 6. **GitHub explanations come with a diagram** (`plan.md` rule 23). Branches, pushes, pull requests,
    merges, conflicts, checks, tags — draw it first: ASCII in a plain fence, commits as short labels,
    branch names on the left, `master` on the right, the reader's own hashes. Before and after are two
-   pictures, never one.
+   pictures, never one. Since rev 34 this is unconditional — **even a step where nothing moved gets a
+   picture**, because "nothing moved" is half the lesson — and `git_recap.md` is where the whole flow
+   is practised on a disposable sandbox.
 
 Also: `plan.md` §1.1 records that threading, third-party API access and circuit breakers are
 **three separate topics** — do not re-bundle them.
@@ -85,5 +88,5 @@ Also: `plan.md` §1.1 records that threading, third-party API access and circuit
 2. Read `plan.md` §11 (progress) — what is done, what is not.
 3. Run the topic gate, then continue from the next unticked item in §9.
 
-> **Last updated:** rev 32. Keep this file's status table in sync whenever `plan.md` advances a
+> **Last updated:** rev 35 (2.7 in progress — first transaction boundary; resume at the `REQUIRES_NEW` audit service). Keep this file's status table in sync whenever `plan.md` advances a
 > phase — and read `git-workflow.md` before committing anything.

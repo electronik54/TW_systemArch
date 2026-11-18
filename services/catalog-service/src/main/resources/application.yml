@@ -1,6 +1,12 @@
+server:
+  port: 8081
+
 spring:
   application:
     name: catalog-service
+  output:
+    ansi:
+      enabled: always #for colored logs in terminal
 
   # ---------------------------------------------------------------------------
   # Credentials come from ENVIRONMENT VARIABLES, with a local default in the
@@ -31,5 +37,15 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: false
 
-server:
-  port: 8081
+# -----------------------------------------------------------------------------
+# The token rules this service enforces (Day 5.3). It never calls identity: the
+# signature is checked locally with the same shared secret, and the audience
+# decides whether the token was meant for us at all.
+# -----------------------------------------------------------------------------
+exr:
+  security:
+    jwt:
+      secret: ${EXR_JWT_SECRET:exr-dev-only-secret-32-bytes-minimum!}
+      issuer: exr-identity
+      audience: exr-api
+

@@ -7,6 +7,11 @@
 > a plain fence, commits as short labels, branch names on the left, `master` on the right, the
 > reader's own hashes. The sentence says what happened; the diagram says where.
 
+> **Learning this hands-on:** `resources/docs/git_recap.md` is the planned step-by-step session — a
+> throwaway sandbox repo, two clones standing in for two engineers, four plain text files, five
+> stages, and a tree diagram after every single step. This page is the *policy*; that page is the
+> *practice*.
+
 ## 1. The model in one picture
 
 ```

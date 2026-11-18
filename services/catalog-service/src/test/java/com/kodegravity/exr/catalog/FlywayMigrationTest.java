@@ -29,7 +29,7 @@ class FlywayMigrationTest extends AbstractIntegrationTest {
     private DataSource dataSource;
 
     @Test
-    @DisplayName("V1 is applied once and recorded in flyway_schema_history")
+    @DisplayName("every migration is applied once and recorded in flyway_schema_history")
     void migrationIsRecorded() throws Exception {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement();
@@ -45,8 +45,10 @@ class FlywayMigrationTest extends AbstractIntegrationTest {
                 assertThat(rs.getInt("checksum")).isNotZero();
             }
 
-            // exactly one migration, applied once - not twice, not zero times
-            assertThat(scripts).containsExactly("V1__catalog_init.sql");
+            // exactly these, in this order, each applied once - not twice, not zero times.
+            // V2 is appended, never merged into V1: V1's checksum is already recorded
+            // everywhere it has run, so editing it would fail every existing database.
+            assertThat(scripts).containsExactly("V1__catalog_init.sql", "V2__event_search.sql", "V3__import_audit.sql");
         }
     }
 
@@ -62,6 +64,37 @@ class FlywayMigrationTest extends AbstractIntegrationTest {
 
             assertThat(rs.next()).isTrue();
             assertThat(rs.getInt(1)).isEqualTo(4);
+        }
+    }
+
+    @Test
+    @DisplayName("V2 adds a generated tsvector column and a GIN index over it")
+    void searchVectorIsGeneratedAndIndexed() throws Exception {
+        try (Connection connection = dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+
+            // is_generated = ALWAYS means the DATABASE writes this column on every
+            // insert and update. If a future migration turned it into a plain
+            // column filled by Java, this assertion is what catches it.
+            try (ResultSet rs = statement.executeQuery(
+                    "select is_generated, generation_expression "
+                            + "from information_schema.columns "
+                            + "where table_name = 'events' and column_name = 'search_vector'")) {
+
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString("is_generated")).isEqualTo("ALWAYS");
+                assertThat(rs.getString("generation_expression")).contains("to_tsvector");
+            }
+
+            // the access method matters as much as the column: a B-tree here would
+            // build fine and then never be used by a `@@` filter
+            try (ResultSet rs = statement.executeQuery(
+                    "select indexdef from pg_indexes "
+                            + "where tablename = 'events' and indexname = 'events_search_gin'")) {
+
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getString("indexdef")).contains("USING gin");
+            }
         }
     }
 }

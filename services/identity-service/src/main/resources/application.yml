@@ -1,0 +1,65 @@
+server:
+  # 8081 is the catalogue. Each service gets its own port locally; behind the
+  # gateway on Day 7 they are addressed by name, not by port.
+  port: 8082
+  
+spring:
+  application:
+    name: identity-service
+
+  output:
+    ansi:
+      enabled: always #for colored logs in terminal
+
+  # ---------------------------------------------------------------------------
+  # Its OWN database. Database-per-service is the boundary this project is built
+  # on (`plan.md` §3.1): `identity` owns `users`, and no other service may join
+  # against it. Credentials come from the environment, with a local default that
+  # only works against the throwaway container on this machine.
+  # ---------------------------------------------------------------------------
+  datasource:
+    url: ${EXR_IDENTITY_DB_URL:jdbc:postgresql://localhost:55432/identity}
+    username: ${EXR_IDENTITY_DB_USER:postgres}
+    password: ${EXR_IDENTITY_DB_PASSWORD:postgres}
+    hikari:
+      # Small on purpose. Authentication holds a connection for the length of one
+      # password check (~50-100 ms with BCrypt) and nothing longer - and many
+      # small pools beat one huge pool, because the database is the limit, not us.
+      maximum-pool-size: 5
+
+  jpa:
+    # FLYWAY owns the schema. Hibernate only checks that the code matches it.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+
+# -----------------------------------------------------------------------------
+# JWT (Day 5.1-5.2). The secret is a DEVELOPMENT value: it is in the repo, so
+# anyone who can read the repo can mint a valid token. Production reads it from
+# Secrets Manager through an environment variable (Day 17.8), and the service
+# refuses to start without it. The 32-byte minimum is not a style choice - HS256
+# refuses a shorter key.
+# -----------------------------------------------------------------------------
+exr:
+  identity:
+    jwt:
+      secret: ${EXR_JWT_SECRET:exr-dev-only-secret-32-bytes-minimum!}
+      # Who minted the token. A service rejects a token with another issuer.
+      issuer: exr-identity
+      # Who the token is FOR. This is the claim that stops a token minted for one
+      # audience being replayed against another (7.6).
+      audience: exr-api
+    # A SIBLING of `jwt`, not a child (7.6). It is not part of the token format - it is
+    # how a caller is allowed to ASK for a token. Nested one level deeper it would
+    # become `exr.identity.jwt.service-key`, and the service would refuse to start with
+    # "Could not resolve placeholder", which is the mistake this comment prevents.
+    # Development value, like the signing secret above: production reads it from
+    # Secrets Manager and rotates it.
+    service-key: ${EXR_SERVICE_KEY:exr-dev-only-service-key}
+
