@@ -3,7 +3,9 @@
 Tracks release dates for **games, movies, web series, anime and live local events**, and notifies
 subscribers before they miss them — by email and calendar reminder.
 
-> **Status:** Day 1 of the build. The repository skeleton exists; there are no services yet.
+> **Status:** Day 5 of the build. Two services run side by side — `catalog-service` on 8081 and
+> `identity-service` on 8082, each with its own database — and a login returns a JWT that the
+> catalogue validates locally, with method security refusing by role.
 > **Start at [`resources/docs/index.md`](resources/docs/index.md)** — the entry point that routes
 > you to everything else. It links to the operating manual (`plan.md`), the product spec and the
 > learning coverage map.

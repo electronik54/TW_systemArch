@@ -27,9 +27,9 @@ system design is the point. Java 21 + Spring Boot 3 microservices on AWS.
 
 | | |
 |---|---|
-| **Phase** | Phase 0 (foundations) complete · Day 1 complete · **Day 2 in progress** (2.1–2.6 ✅, plus the CI-gate lab: `master` is protected and green) |
-| **Code** | `libs/exr-common` (correlation-id filter, RFC 7807 error model, auto-configuration) + `services/catalog-service` (`Source`/`Event` entities, `EventRepository`, `EventSearchRepository`, Flyway `V1` + `V2`) — **23 tests green** (11 + 12): 18 before 2.6, plus 4 search tests and 1 migration test |
-| **Services** | `catalog-service` exists and boots; the persistence tests start their own `postgres:16` via Testcontainers |
+| **Phase** | Phase 0 (foundations) complete · Day 1 complete · Day 2 complete as far as **2.6** (2.7 steps 1–3 ✅, step 4 parked until Day 8) · Day 4 complete for **4.1–4.3** (4.4 parked until Day 7) · **Day 5 three-quarters done** — 5.1 ✅ 5.3 ✅ 5.4 ✅, **5.2 access half**, **7.6 built both ways**; open: 5.2 refresh, 5.3 JWKS, 5.4 hierarchy, 5.5 revocation |
+| **Code** | `libs/exr-common` (correlation-id filter, RFC 7807 error model, auto-configuration) + `services/catalog-service` (`Source`/`Event` entities, `EventRepository`, `EventSearchRepository`, bearer-token `SecurityConfig`, `@PreAuthorize`, Flyway `V1`–`V3`) + `services/identity-service` (`User` + lockout, register/login/service-token endpoints, `TokenService`, `SecurityConfig`, Flyway `V1`–`V2`) — **33 tests green** (11 + 16 + 6) |
+| **Services** | `catalog-service` on **8081** (database `catalog`) and `identity-service` on **8082** (database `identity`) — both boot; the persistence tests start their own `postgres:16` via Testcontainers |
 | **CI** | `.github/workflows/ci.yml` green on `master`; no database service container (the tests bring their own). Since 2026-11-13 `master` is **protected by a ruleset** that requires the check **`Build and test (Java 21)`**, blocks force pushes and deletions, and has an empty bypass list |
 | **Repo** | `https://github.com/electronik54/TW_systemArch` — **trunk-based**, `master` is the only long-lived branch (`git-workflow.md`) |
 
@@ -50,7 +50,8 @@ pom.xml                  Maven aggregator + parent (single source of version gov
 mvnw / mvnw.cmd          Maven wrapper (Maven pinned to 3.9.15)
 .github/workflows/       ci.yml — checkout -> JDK 21 -> ./mvnw verify
 libs/exr-common/         shared plumbing (request ids, error shape) — NEVER domain code
-services/catalog-service/ catalog domain: entities, repositories (JPA + a JDBC search), Flyway V1 + V2, Testcontainers base class
+services/catalog-service/ catalog domain: entities, repositories (JPA + a JDBC search), Flyway V1–V3, a bearer-token resource server, Testcontainers base class
+services/identity-service/ users + lockout, register/login/service-token endpoints, TokenService, SecurityConfig, Flyway V1–V2
 infra/                   docker-compose for local dev, Terraform for AWS (not yet created)
 ui/web/                  React + TypeScript SPA (not yet created)
 resources/docs/          index.md · plan.md · projectDetails.md · need.txt · git-workflow.md · git_recap.md · catalog/schema.md
@@ -88,5 +89,5 @@ Also: `plan.md` §1.1 records that threading, third-party API access and circuit
 2. Read `plan.md` §11 (progress) — what is done, what is not.
 3. Run the topic gate, then continue from the next unticked item in §9.
 
-> **Last updated:** rev 35 (2.7 in progress — first transaction boundary; resume at the `REQUIRES_NEW` audit service). Keep this file's status table in sync whenever `plan.md` advances a
+> **Last updated:** rev 48 (Day 5 — a read-through audit corrected this table; PR #6 merged as `8a1f420`; user tokens minted and validated locally, service tokens minted from a shared key, `@PreAuthorize` answering 403; open: 5.2 refresh, 5.3 JWKS, 5.4 hierarchy, 5.5 revocation). Keep this file's status table in sync whenever `plan.md` advances a
 > phase — and read `git-workflow.md` before committing anything.
