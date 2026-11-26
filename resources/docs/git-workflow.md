@@ -183,5 +183,5 @@ the same gate it repairs. And `git branch -d` cannot tidy up after a squash merg
 
 ---
 
-**Related:** `plan.md` §0 (resume point) · `plan.md` §11.1 (revision history, rev 27) ·
+**Related:** `plan.md` §0 (resume point) · `plan.md` §11.1 (revision history, rev 47) ·
 `index.md` (documentation entry point) · `.github/workflows/ci.yml` (the gate itself).
